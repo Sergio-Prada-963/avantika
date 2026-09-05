@@ -32,6 +32,15 @@ class SaleOrderLine(models.Model):
         store=True,
     )
 
+    def _has_manual_price(self):
+        self.ensure_one()
+        currency = (
+            self.currency_id
+            or self.company_id.currency_id
+            or self.env.company.currency_id
+        )
+        return bool(currency.compare_amounts(self.technical_price_unit, self.price_unit))
+
     def _get_pricelist_kwargs(self):
         kwargs = super()._get_pricelist_kwargs()
         kwargs["exwork"] = self.exwork
@@ -136,6 +145,13 @@ class SaleOrderLine(models.Model):
             line.factor_importacion = seller.factor_importacion or 0.0
             line.factor_rentabilidad = pricelist_line.rentabilidad or 0.0
 
+    @api.depends('exwork')
+    def _compute_purchase_price(self):
+        super()._compute_purchase_price()
+        for line in self:
+            if line.product_id and not line._is_kit():
+                line.purchase_price = line.exwork
+
     def _is_kit(self):
         """Un kit es un producto con una lista de materiales asociada
         (creado, por ejemplo, con el botón "Agregar Kit" de sale_order_custom)."""
@@ -210,8 +226,17 @@ class SaleOrderLine(models.Model):
     )
     def _compute_price_unit(self):
         super()._compute_price_unit()
+        force_recompute = self.env.context.get('force_price_recomputation')
         for line in self:
             if not line.order_id or line.is_downpayment or line._is_global_discount():
+                continue
+
+            # Igual que el core (`has_manual_price` en sale.order.line):
+            # si el precio fue editado a mano, no se debe pisar en recálculos
+            # posteriores (p. ej. al confirmar la orden), salvo que el
+            # recálculo se haya pedido explícitamente (botón "Actualizar
+            # Precios", que pasa `force_price_recomputation` en el contexto).
+            if not force_recompute and line._has_manual_price():
                 continue
 
             if line.product_id and line._is_kit():
