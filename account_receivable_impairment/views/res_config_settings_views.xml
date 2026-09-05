@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_impairment" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.impairment</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="account.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@id='invoicing_settings']" position="inside">
+                <setting id="impairment_matrix_setting" string="Deterioro de Cartera (NIIF 9)"
+                         help="Configura las cuentas, el diario y los rangos de mora usados para calcular el deterioro de cartera">
+                    <div class="content-group">
+                        <div class="row mt16">
+                            <label for="impairment_periodicity" string="Periodicidad de Cálculo Automático"
+                                   class="col-lg-4 o_light_label"/>
+                            <field name="impairment_periodicity"/>
+                        </div>
+                        <div class="row mt8">
+                            <label for="impairment_journal_id" string="Diario" class="col-lg-4 o_light_label"/>
+                            <field name="impairment_journal_id"/>
+                        </div>
+                        <div class="row mt8">
+                            <label for="impairment_expense_account_id" string="Cuenta de gasto"
+                                   class="col-lg-4 o_light_label"/>
+                            <field name="impairment_expense_account_id"/>
+                        </div>
+                        <div class="row mt8">
+                            <label for="impairment_provision_account_id" string="Cuenta de provisión"
+                                   class="col-lg-4 o_light_label"/>
+                            <field name="impairment_provision_account_id"/>
+                        </div>
+                        <div class="row mt8">
+                            <div class="col-lg-8 offset-lg-4 text-muted">
+                                Marca las cuentas por cobrar a evaluar desde
+                                Contabilidad → Configuración → Plan de Cuentas,
+                                con el check "Evaluar Deterioro de Cartera". Si
+                                ninguna cuenta está marcada, se evalúan todas
+                                las cuentas de tipo "A cobrar".
+                            </div>
+                        </div>
+                        <div class="mt16">
+                            <label for="impairment_line_ids" string="Rangos de mora"/>
+                            <field name="impairment_line_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="day_from"/>
+                                    <field name="day_to"/>
+                                    <field name="percentage" widget="percentage"/>
+                                </list>
+                            </field>
+                        </div>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

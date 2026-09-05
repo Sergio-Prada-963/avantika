@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="product_pricelist_item_form_view_inherit_price_list_sales" model="ir.ui.view">
+        <field name="name">product.pricelist.item.form.inherit.price.list.sales</field>
+        <field name="model">product.pricelist.item</field>
+        <field name="inherit_id" ref="product.product_pricelist_item_form_view"/>
+        <field name="arch" type="xml">
+            <field name="product_tmpl_id" position="before">
+                <field name="sector_ids" widget="many2many_tags"/>
+                <field name="sub_sector_ids" widget="many2many_tags"/>
+                <field name="proveedor_id"/>
+            </field>
+            <field name="base" position="after">
+                <field name="rentabilidad" invisible="base != 'proveedor'"/>
+            </field>
+        </field>
+    </record>
+</odoo>

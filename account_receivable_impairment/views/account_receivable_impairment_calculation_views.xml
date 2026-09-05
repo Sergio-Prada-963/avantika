@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_account_receivable_impairment_calculation_form" model="ir.ui.view">
+        <field name="name">account.receivable.impairment.calculation.form</field>
+        <field name="model">account.receivable.impairment.calculation</field>
+        <field name="arch" type="xml">
+            <form string="Cálculo de Deterioro de Cartera">
+                <header>
+                    <button name="action_calculate" type="object" string="Calcular"
+                            class="oe_highlight" invisible="state != 'draft'"/>
+                    <button name="action_post" type="object" string="Contabilizar"
+                            class="oe_highlight" invisible="state != 'calculated'"/>
+                    <button name="action_reset_to_draft" type="object" string="Restablecer a borrador"
+                            invisible="state == 'draft'"/>
+                    <button name="action_cancel" type="object" string="Cancelar"
+                            invisible="state not in ('draft', 'calculated')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,calculated,posted"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_move" type="object" class="oe_stat_button"
+                                icon="fa-book" invisible="not move_id">
+                            <field name="move_id" widget="statinfo" string="Asiento"/>
+                        </button>
+                        <button name="action_view_invoices" type="object" class="oe_stat_button"
+                                icon="fa-file-text-o" invisible="invoice_count == 0">
+                            <field name="invoice_count" widget="statinfo" string="Facturas"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <field name="date" readonly="state != 'draft'"/>
+                        <field name="company_id" groups="base.group_multi_company"
+                               readonly="state != 'draft'"/>
+                        <field name="currency_id" invisible="1"/>
+                    </group>
+                    <group string="Totales">
+                        <field name="total_required"/>
+                        <field name="total_existing"/>
+                        <field name="total_adjustment"/>
+                    </group>
+                    <notebook>
+                        <page string="Detalle por factura">
+                            <field name="line_ids" readonly="state not in ('draft', 'calculated')">
+                                <list>
+                                    <field name="partner_id"/>
+                                    <field name="move_id"/>
+                                    <field name="date_maturity"/>
+                                    <field name="days_overdue"/>
+                                    <field name="matrix_line_id"/>
+                                    <field name="residual_amount"/>
+                                    <field name="percentage" widget="percentage"/>
+                                    <field name="required_amount"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_account_receivable_impairment_calculation_list" model="ir.ui.view">
+        <field name="name">account.receivable.impairment.calculation.list</field>
+        <field name="model">account.receivable.impairment.calculation</field>
+        <field name="arch" type="xml">
+            <list string="Cálculos de Deterioro de Cartera">
+                <field name="name"/>
+                <field name="date"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="total_required"/>
+                <field name="total_adjustment"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'posted'"
+                       decoration-info="state == 'calculated'"
+                       decoration-muted="state == 'cancelled'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_account_receivable_impairment_calculation" model="ir.actions.act_window">
+        <field name="name">Deterioro de Cartera</field>
+        <field name="res_model">account.receivable.impairment.calculation</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

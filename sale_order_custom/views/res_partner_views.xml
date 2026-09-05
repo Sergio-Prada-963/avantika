@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_partner_form_analytic_distribution" model="ir.ui.view">
+        <field name="name">res.partner.form.analytic.distribution</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <group name="sale" position="inside">
+                <field name="analytic_precision" invisible="1"/>
+                <field name="analytic_distribution"
+                       string="Distribución Analítica"
+                       widget="analytic_distribution"
+                       options="{'force_applicability': 'optional'}"/>
+            </group>
+        </field>
+    </record>
+
+</odoo>

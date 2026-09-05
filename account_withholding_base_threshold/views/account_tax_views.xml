@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_tax_form_withholding_base_threshold" model="ir.ui.view">
+        <field name="name">account.tax.form.withholding.base.threshold</field>
+        <field name="model">account.tax</field>
+        <field name="inherit_id" ref="account.view_tax_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="before">
+                <group string="Base Mínima por UVT (Retenciones)">
+                    <field name="uvt_base"/>
+                    <field name="uvt_base_type" invisible="not uvt_base" required="uvt_base"/>
+                    <field name="uvt_quantity" invisible="not uvt_base" required="uvt_base"/>
+                </group>
+                <group string="ReteICA Municipal">
+                    <field name="is_reteica"/>
+                    <field name="city_id" invisible="not is_reteica" required="is_reteica"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

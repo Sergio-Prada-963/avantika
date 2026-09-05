@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_account_payment_schedule_readonly,account.payment.schedule.readonly,model_account_payment_schedule,account.group_account_readonly,1,0,0,0
+access_account_payment_schedule,account.payment.schedule,model_account_payment_schedule,account.group_account_invoice,1,1,1,1
+access_account_payment_schedule_line_readonly,account.payment.schedule.line.readonly,model_account_payment_schedule_line,account.group_account_readonly,1,0,0,0
+access_account_payment_schedule_line,account.payment.schedule.line,model_account_payment_schedule_line,account.group_account_invoice,1,1,1,1
+access_account_payment_schedule_add_lines,account.payment.schedule.add.lines,model_account_payment_schedule_add_lines,account.group_account_invoice,1,1,1,1

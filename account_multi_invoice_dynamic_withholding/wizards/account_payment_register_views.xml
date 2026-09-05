@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_account_payment_register_form_multi_withholding" model="ir.ui.view">
+        <field name="name">account.payment.register.form.multi.withholding</field>
+        <field name="model">account.payment.register</field>
+        <field name="inherit_id" ref="account.view_account_payment_register_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//footer" position="before">
+                <field name="withholding_partner_id" invisible="1"/>
+                <field name="withholding_invoice_move_ids" invisible="1"/>
+                <group string="Facturas Incluidas">
+                    <p class="text-muted mb-1" colspan="2">
+                        El "Total" y la "Cantidad por pagar" se recalculan al instante según los impuestos
+                        elegidos. La factura nunca se modifica: el impuesto agregado se contabiliza como una
+                        línea aparte en el asiento de este pago.
+                    </p>
+                    <field name="withholding_invoice_ids" nolabel="1" colspan="2" create="0">
+                        <list editable="bottom" create="0">
+                            <field name="move_id" column_invisible="1" required="1"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="allowed_tax_ids" column_invisible="1"/>
+                            <field name="tax_ids_is_manual" column_invisible="1"/>
+                            <field name="importe_is_manual" column_invisible="1"/>
+                            <field name="name" string="Número" readonly="1"/>
+                            <field name="partner_id" string="Tercero" readonly="1"/>
+                            <field name="invoice_date_due" string="Fecha Vencimiento" readonly="1"/>
+                            <field name="amount_untaxed" string="Valor sin Impuesto" readonly="1"/>
+                            <field name="amount_total" string="Total" readonly="1"/>
+                            <field name="amount_residual" string="Cantidad por Pagar" readonly="1"/>
+                            <field name="tax_ids" string="Impuestos" widget="many2many_tags" options="{'no_create': True}"/>
+                            <field name="importe" string="Importe"
+                                   column_invisible="not parent.group_payment"
+                                   readonly="not parent.group_payment"/>
+                        </list>
+                    </field>
+                    <label for="add_move_id"
+                           string="➕ Agregar otra factura pendiente de pago del mismo tercero"
+                           class="fw-bold text-primary" colspan="2"/>
+                    <field name="add_move_id" nolabel="1" colspan="2"
+                           placeholder="Buscar factura pendiente de pago..."
+                           options="{'no_create': True}"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

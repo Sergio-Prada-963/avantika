@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_form_inherit_price_list_sales" model="ir.ui.view">
+        <field name="name">sale.order.form.inherit.price.list.sales</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook[1]" position="before">
+                <div class="alert alert-warning" role="alert"
+                     invisible="not seller_mismatch_warning">
+                    <field name="seller_mismatch_warning" nolabel="1" readonly="1"/>
+                </div>
+            </xpath>
+            <xpath expr="//div[@class='o_row' and @groups='product.group_product_pricelist']/field[@name='pricelist_id']" position="before">
+                <field name="allowed_pricelist_ids" invisible="1"/>
+            </xpath>
+            <xpath expr="//div[@class='o_row' and @groups='product.group_product_pricelist']/field[@name='pricelist_id']" position="attributes">
+                <attribute name="domain">[('id', 'in', allowed_pricelist_ids)]</attribute>
+            </xpath>
+            <xpath expr="//div[@class='o_row' and @groups='product.group_product_pricelist']" position="after">
+                <div class="alert alert-warning mb-0 py-1" role="alert" colspan="2"
+                     invisible="not pricelist_sector_warning">
+                    <field name="pricelist_sector_warning" nolabel="1" readonly="1" class="text-warning"/>
+                </div>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list" position="attributes">
+                <attribute name="decoration-warning">seller_mismatch</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='price_unit']" position="after">
+                <field name="pricelist_line_id" optional="hide" readonly="1"/>
+                <field name="exwork" optional="hide" groups="base.group_system"/>
+                <field name="factor_importacion" optional="hide" groups="base.group_system"/>
+                <field name="trm" optional="hide" groups="base.group_system"/>
+                <field name="factor_rentabilidad" optional="hide" groups="base.group_system"/>
+                <field name="seller_mismatch" column_invisible="1"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

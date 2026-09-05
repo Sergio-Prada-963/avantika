@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_move_form_inherit_price_list_sales" model="ir.ui.view">
+        <field name="name">account.move.form.inherit.price.list.sales</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_shipping_id']" position="after">
+                <field name="allowed_pricelist_ids" invisible="1"/>
+                <field name="pricelist_id"
+                    options="{'no_open': True, 'no_create': True}"
+                    domain="[('id', 'in', allowed_pricelist_ids)]"
+                    invisible="move_type not in ('out_invoice', 'out_refund')"
+                    readonly="state != 'draft'"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

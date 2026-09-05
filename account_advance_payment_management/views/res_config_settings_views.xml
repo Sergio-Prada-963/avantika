@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_apm" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.apm</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="account.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@id='invoicing_settings']" position="inside">
+                <setting id="apm_advance_payment_setting" string="Gestión de Anticipos"
+                         help="Configura las cuentas y el diario usados para anticipos sin factura previa">
+                    <div class="content-group">
+                        <div class="row mt16">
+                            <label for="apm_advance_receivable_account_id"
+                                   string="Cuenta de Anticipos de Clientes"
+                                   class="col-lg-4 o_light_label"/>
+                            <field name="apm_advance_receivable_account_id"/>
+                        </div>
+                        <div class="row mt8">
+                            <label for="apm_advance_payable_account_id"
+                                   string="Cuenta de Anticipos a Proveedores"
+                                   class="col-lg-4 o_light_label"/>
+                            <field name="apm_advance_payable_account_id"/>
+                        </div>
+                        <div class="row mt8">
+                            <label for="apm_advance_journal_customer_id"
+                                   string="Diario de Anticipos de Clientes"
+                                   class="col-lg-4 o_light_label"/>
+                            <field name="apm_advance_journal_customer_id"/>
+                        </div>
+                        <div class="row mt8">
+                            <label for="apm_advance_journal_supplier_id"
+                                   string="Diario de Anticipos a Proveedores"
+                                   class="col-lg-4 o_light_label"/>
+                            <field name="apm_advance_journal_supplier_id"/>
+                        </div>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

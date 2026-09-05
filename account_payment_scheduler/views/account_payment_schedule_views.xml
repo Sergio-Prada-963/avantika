@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_account_payment_schedule_list" model="ir.ui.view">
+        <field name="name">account.payment.schedule.list</field>
+        <field name="model">account.payment.schedule</field>
+        <field name="arch" type="xml">
+            <list string="Programaciones de Pago" decoration-muted="state == 'cancelled'">
+                <field name="name"/>
+                <field name="date"/>
+                <field name="journal_id"/>
+                <field name="total_residual" widget="monetary"/>
+                <field name="total_to_pay" widget="monetary"/>
+                <field name="total_advance" widget="monetary" optional="hide"/>
+                <field name="payment_count"/>
+                <field name="auto_generated" optional="hide"/>
+                <field name="state" widget="badge"
+                    decoration-success="state == 'confirmed'"
+                    decoration-danger="state == 'cancelled'"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_account_payment_schedule_form" model="ir.ui.view">
+        <field name="name">account.payment.schedule.form</field>
+        <field name="model">account.payment.schedule</field>
+        <field name="arch" type="xml">
+            <form string="Programación de Pago">
+                <header>
+                    <button name="action_confirm" string="Confirmar" type="object"
+                        class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_cancel" string="Cancelar" type="object"
+                        invisible="state == 'cancelled'"/>
+                    <button name="action_draft" string="Volver a Borrador" type="object"
+                        invisible="state != 'cancelled'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_invoices" type="object"
+                            class="oe_stat_button" icon="fa-file-text-o"
+                            invisible="invoice_count == 0">
+                            <field name="invoice_count" widget="statinfo" string="Facturas"/>
+                        </button>
+                        <button name="action_view_payments" type="object"
+                            class="oe_stat_button" icon="fa-money"
+                            invisible="payment_count == 0">
+                            <field name="payment_count" widget="statinfo" string="Pagos"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="date" readonly="state != 'draft'"/>
+                            <field name="journal_id" readonly="state != 'draft'"/>
+                            <field name="company_id" groups="base.group_multi_company"
+                                readonly="state != 'draft'"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="total_residual" widget="monetary"/>
+                            <field name="total_to_pay" widget="monetary"/>
+                            <field name="total_advance" widget="monetary"
+                                invisible="not total_advance"
+                                decoration-warning="total_advance"/>
+                            <field name="auto_generated" invisible="1"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-warning" role="alert" invisible="not total_advance">
+                        El monto a pagar de una o más facturas supera su saldo pendiente:
+                        el excedente (<field name="total_advance" widget="monetary" class="oe_inline"/>)
+                        se registrará como anticipo a proveedor al confirmar.
+                    </div>
+                    <notebook>
+                        <page string="Facturas" name="lines">
+                            <button name="action_add_invoices" string="Agregar Facturas"
+                                type="object" class="btn-link mb-2"
+                                invisible="state != 'draft'"/>
+                            <field name="line_ids" readonly="state != 'draft'">
+                                <list editable="bottom" decoration-warning="amount_advance">
+                                    <field name="move_id" readonly="1"/>
+                                    <field name="partner_id"/>
+                                    <field name="invoice_date"/>
+                                    <field name="invoice_date_due"/>
+                                    <field name="ref" optional="hide"/>
+                                    <field name="amount_total" widget="monetary"/>
+                                    <field name="amount_residual" widget="monetary"/>
+                                    <field name="amount_to_pay" widget="monetary"/>
+                                    <field name="amount_advance" widget="monetary" optional="show"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notas" name="note">
+                            <field name="note" placeholder="Notas internas..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+
+    <record id="action_account_payment_schedule" model="ir.actions.act_window">
+        <field name="name">Programación de Pagos</field>
+        <field name="res_model">account.payment.schedule</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smart_create">
+                Crea tu primera programación de pago a proveedores
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_account_payment_schedule"
+        name="Programación de Pagos"
+        action="action_account_payment_schedule"
+        parent="account.menu_finance_payables"
+        sequence="25"/>
+
+</odoo>

@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_order_form_custom" model="ir.ui.view">
+        <field name="name">sale.order.form.custom</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='order_line']//list//widget[@name='qty_at_date_widget']" position="after">
+                <widget name="stock_quant_search_widget"/>
+            </xpath>
+            <xpath expr="//field[@name='order_line']//form//widget[@name='qty_at_date_widget']" position="after">
+                <widget name="stock_quant_search_widget"/>
+            </xpath>
+
+            <xpath expr="//button[@name='action_update_prices']" position="attributes">
+                <attribute name="invisible">0</attribute>
+            </xpath>
+
+            <xpath expr="//button[@name='sale.action_report_saleorder']" position="attributes">
+                <attribute name="type">object</attribute>
+                <attribute name="name">action_print_saleorder</attribute>
+            </xpath>
+
+            <xpath expr="//header" position="inside">
+                <button string="Cambiar Producto"
+                    name="%(sale_order_custom.action_sale_order_change_product_wizard)d"
+                    type="action"
+                    context="{'default_order_id': id}"
+                    invisible="state not in ['sent', 'sale']"/>
+            </xpath>
+
+            <xpath expr="//field[@name='payment_term_id']" position="after">
+                <field name="allow_zero_margin_confirmation"/>
+                <field name="contract_global_due_date"/>
+                <field name="is_aiu_quotation"/>
+                <field name="aiu_administracion_percent" widget="percentage" invisible="not is_aiu_quotation"/>
+                <field name="aiu_imprevistos_percent" widget="percentage" invisible="not is_aiu_quotation"/>
+                <field name="aiu_utilidades_percent" widget="percentage" invisible="not is_aiu_quotation"/>
+            </xpath>
+
+            <xpath expr="//field[@name='order_line']//list/control" position="inside">
+                <button string="Agregar Kit" name="action_open_add_kit_wizard" type="object"
+                    class="px-4 btn-link" context="{'order_id': parent.id}"/>
+            </xpath>
+
+            <xpath expr="//field[@name='order_line']//list" position="inside">
+                <field name="aiu_line_type" column_invisible="1"/>
+                <field name="due_date" optional="show"/>
+            </xpath>
+
+            <xpath expr="//field[@name='order_line']//form" position="inside">
+                <field name="due_date"/>
+            </xpath>
+
+            <xpath expr="//field[@name='sale_order_template_id']" position="after">
+                <field name="has_margin_lines" invisible="1"/>
+                <field name="has_pending_margin_line" invisible="1"/>
+                <field name="can_approve_sale_margin" invisible="1"/>
+                <div class="o_row"
+                    invisible="not has_margin_lines or not has_pending_margin_line or not can_approve_sale_margin or state != 'draft'">
+                    <button name="action_approve_all_margins" type="object"
+                        string="Aprobar Todos los Márgenes"
+                        class="btn-link text-success" icon="fa-check"/>
+                    <button name="action_reject_all_margins" type="object"
+                        string="Rechazar Todos los Márgenes"
+                        class="btn-link text-danger" icon="fa-times"/>
+                </div>
+                <div class="o_row"
+                    invisible="not has_margin_lines or has_pending_margin_line or not can_approve_sale_margin or state != 'draft'">
+                    <button name="action_reset_all_margins" type="object"
+                        string="Restablecer Todos los Márgenes"
+                        class="btn-link text-info" icon="fa-refresh"/>
+                </div>
+            </xpath>
+
+            <xpath expr="//field[@name='order_line']//list" position="attributes">
+                <attribute name="decoration-success">margin_approval_status == 'approved'</attribute>
+                <attribute name="decoration-danger">margin_approval_status == 'rejected'</attribute>
+                <attribute name="class">o_sale_order_line_margin_list</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']//list" position="inside">
+                <field name="can_approve_sale_margin" column_invisible="1"/>
+                <field name="margin_approval_status" column_invisible="1"/>
+                <field name="can_edit_price_unit" column_invisible="1"/>
+            </xpath>
+            <xpath expr="//field[@name='order_line']//list//field[@name='price_unit']" position="attributes">
+                <attribute name="readonly">qty_invoiced &gt; 0 or not can_edit_price_unit</attribute>
+                <attribute name="force_save">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']//form" position="inside">
+                <field name="can_edit_price_unit" invisible="1"/>
+            </xpath>
+            <xpath expr="//field[@name='order_line']//form//field[@name='price_unit']" position="attributes">
+                <attribute name="readonly">not can_edit_price_unit</attribute>
+                <attribute name="force_save">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']//list//field[@name='product_id']" position="before">
+                <button name="action_approve_margin" type="object" icon="fa-check"
+                    title="Aprobar margen" class="text-success"
+                    invisible="display_type or not can_approve_sale_margin or state != 'draft' or margin_approval_status != 'pending'"/>
+                <button name="action_reject_margin" type="object" icon="fa-times"
+                    title="Rechazar margen" class="text-danger"
+                    invisible="display_type or not can_approve_sale_margin or state != 'draft' or margin_approval_status != 'pending'"/>
+                <button name="action_reset_margin_approval" type="object" icon="fa-refresh"
+                    title="Reiniciar decisión de margen" class="text-info"
+                    invisible="display_type or not can_approve_sale_margin or state != 'draft' or margin_approval_status == 'pending'"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

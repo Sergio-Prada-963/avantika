@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="sale_order_custom.StockQuantSearchWidget">
+        <a href="#"
+            t-on-click="openQuants"
+            t-att-class="!isVisible ? 'invisible' : ''"
+            class="fa fa-search cursor-pointer ms-1"
+            title="Ver existencias por ubicación"
+        />
+        <a href="#"
+            t-on-click="openSupplierInfo"
+            t-att-class="!hasProduct ? 'invisible' : ''"
+            class="fa fa-money cursor-pointer ms-1"
+            title="Ver proveedores del producto"
+        />
+        <a href="#"
+            t-on-click="openBom"
+            t-att-class="!isKit ? 'invisible' : ''"
+            class="fa fa-flask cursor-pointer ms-1"
+            title="Ver componentes del kit"
+        />
+    </t>
+
+</templates>

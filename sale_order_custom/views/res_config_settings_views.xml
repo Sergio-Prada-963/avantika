@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_aiu" model="ir.ui.view">
+        <field name="name">res.config.settings.form.aiu</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='quotation_order_setting_container']" position="inside">
+                <setting id="aiu_products_setting" string="Cotización AIU"
+                    help="Productos usados para las líneas de Administración, Imprevistos y Utilidades al activar la Cotización AIU">
+                    <div class="content-group">
+                        <div class="row mt8">
+                            <label for="aiu_administracion_product_id" class="col-lg-4 o_light_label" string="Administración"/>
+                            <field name="aiu_administracion_product_id"/>
+                        </div>
+                        <div class="row mt8">
+                            <label for="aiu_imprevistos_product_id" class="col-lg-4 o_light_label" string="Imprevistos"/>
+                            <field name="aiu_imprevistos_product_id"/>
+                        </div>
+                        <div class="row mt8">
+                            <label for="aiu_utilidades_product_id" class="col-lg-4 o_light_label" string="Utilidades"/>
+                            <field name="aiu_utilidades_product_id"/>
+                        </div>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- Se instalan inactivos a propósito: activar la réplica dual de forma
+         automática al instalar el módulo detendría la contabilización de
+         CUALQUIER asiento de la compañía hasta que se configuren los
+         diarios espejo. El usuario debe revisar/completar los diarios
+         vinculados y activar estos libros de forma consciente. -->
+
+    <record id="account_book_niif" model="account.book">
+        <field name="name">NIIF / IFRS</field>
+        <field name="code">NIIF</field>
+        <field name="type">primary</field>
+        <field name="active" eval="False"/>
+    </record>
+
+    <record id="account_book_fiscal" model="account.book">
+        <field name="name">Fiscal / Local</field>
+        <field name="code">FISC</field>
+        <field name="type">secondary</field>
+        <field name="active" eval="False"/>
+    </record>
+
+</odoo>

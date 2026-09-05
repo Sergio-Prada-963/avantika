@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_move_form_inherit_dual" model="ir.ui.view">
+        <field name="name">account.move.form.inherit.dual</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_mirror_move"
+                        class="oe_stat_button"
+                        icon="fa-clone"
+                        type="object"
+                        invisible="not mirror_move_id">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Asiento Espejo</span>
+                    </div>
+                </button>
+            </xpath>
+
+            <field name="tax_cash_basis_origin_move_id" position="after">
+                <field name="accounting_book_id" readonly="is_dual_generated or state != 'draft'" invisible="1"/>
+                <field name="is_dual_generated" invisible="1"/>
+                <field name="origin_move_id" invisible="not origin_move_id" readonly="1"/>
+                <field name="mirror_move_id" invisible="1"/>
+            </field>
+
+        </field>
+    </record>
+
+</odoo>
