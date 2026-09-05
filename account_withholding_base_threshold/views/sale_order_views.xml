@@ -6,7 +6,7 @@
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
             <field name="partner_id" position="after">
-                <field name="city_declaration_id"/>
+                <field name="city_declaration_id" invisible="1"/>
             </field>
         </field>
     </record>

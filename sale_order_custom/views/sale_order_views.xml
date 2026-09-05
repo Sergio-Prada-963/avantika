@@ -53,10 +53,24 @@
                 <field name="due_date"/>
             </xpath>
 
+            <xpath expr="//button[@id='action_confirm']" position="attributes">
+                <attribute name="invisible">state != 'sent' or not show_confirm_button</attribute>
+            </xpath>
+            <xpath expr="(//button[@name='action_confirm'])[2]" position="attributes">
+                <attribute name="invisible">state != 'draft' or not show_confirm_button</attribute>
+            </xpath>
+            <xpath expr="//button[@id='quotation_send_primary']" position="attributes">
+                <attribute name="invisible">state != 'draft' or not show_confirm_button</attribute>
+            </xpath>
+            <xpath expr="//button[@id='quotation_send']" position="attributes">
+                <attribute name="invisible">state not in ('sent', 'sale') or not show_confirm_button</attribute>
+            </xpath>
+
             <xpath expr="//field[@name='sale_order_template_id']" position="after">
                 <field name="has_margin_lines" invisible="1"/>
                 <field name="has_pending_margin_line" invisible="1"/>
                 <field name="can_approve_sale_margin" invisible="1"/>
+                <field name="show_confirm_button" invisible="1"/>
                 <div class="o_row"
                     invisible="not has_margin_lines or not has_pending_margin_line or not can_approve_sale_margin or state != 'draft'">
                     <button name="action_approve_all_margins" type="object"

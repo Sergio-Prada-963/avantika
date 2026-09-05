@@ -11,6 +11,9 @@
                 <field name="currency_id" groups="base.group_multi_currency"
                        options="{'no_create': True}"
                        readonly="state in ['cancel', 'sale']"/>
+                <label for="currency_rate" string="Tasa de Cambio"
+                       groups="base.group_multi_currency"
+                       invisible="currency_id == company_currency_id"/>
                 <div class="d-flex gap-1 text-muted"
                      groups="base.group_multi_currency"
                      invisible="currency_id == company_currency_id">

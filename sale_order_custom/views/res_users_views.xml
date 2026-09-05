@@ -7,11 +7,19 @@
         <field name="inherit_id" ref="base.view_users_form"/>
         <field name="arch" type="xml">
             <xpath expr="//page[@name='preferences']" position="inside">
-                <group string="Aprobación de Márgenes de Venta">
+                <group string="Preferencias en Ventas">
                     <field name="approve_sale_margins" widget="boolean_toggle"/>
-                </group>
-                <group string="Edición de Precios en Ventas">
+                    <div colspan="2" class="text-muted mb-2">
+                        Permite aprobar o rechazar el margen de las líneas de una cotización.
+                    </div>
                     <field name="can_edit_price_unit" widget="boolean_toggle"/>
+                    <div colspan="2" class="text-muted mb-2">
+                        Permite editar manualmente el precio unitario de las líneas de venta.
+                    </div>
+                    <field name="show_confirm_button_sale" widget="boolean_toggle"/>
+                    <div colspan="2" class="text-muted">
+                        Muestra los botones de Confirmar y Enviar en las órdenes de venta.
+                    </div>
                 </group>
             </xpath>
         </field>

@@ -27,6 +27,16 @@ class SaleOrder(models.Model):
         string="Puede Aprobar Márgenes",
         compute='_compute_can_approve_sale_margin',
     )
+    show_confirm_button = fields.Boolean(
+        string="Mostrar Botón de Confirmar",
+        compute='_compute_show_confirm_button',
+    )
+
+    @api.depends_context('uid')
+    def _compute_show_confirm_button(self):
+        show = self.env.user.show_confirm_button_sale
+        for order in self:
+            order.show_confirm_button = show
 
     @api.depends('order_line.display_type', 'order_line.margin_approval_status')
     def _compute_has_margin_lines(self):
@@ -80,8 +90,12 @@ class SaleOrder(models.Model):
     def _check_margin_decisions_defined(self):
         """Toda línea decidible (no sección/nota) debe tener una decisión de
         margen explícita -aprobado o rechazado-, sin importar el signo del
-        margen, antes de poder confirmar, enviar o imprimir la cotización."""
+        margen, antes de poder confirmar, enviar o imprimir la cotización.
+        Se omite por completo si el margen general de la orden ya es mayor o
+        igual al 35%: en ese caso no hace falta decisión línea por línea."""
         self.ensure_one()
+        if float_compare(self.margin_percent, 0.35, precision_digits=4) >= 0:
+            return
         pending_lines = self.order_line.filtered(
             lambda l: not l.display_type and l.margin_approval_status == 'pending'
         )
@@ -348,26 +362,34 @@ class SaleOrderLine(models.Model):
             line_old_values = old_values.get(line.id)
             if not line_old_values:
                 continue
-            changes = []
+            change_items = Markup('')
             for fname in tracked_fields:
                 old_value = line_old_values[fname]
                 new_value = line[fname]
                 if old_value == new_value:
                     continue
                 label = self._TRACKED_FIELD_LABELS[fname]
-                changes.append(_(
-                    "%(label)s: %(old)s → %(new)s",
-                    label=html_escape(label),
-                    old=line._format_tracked_value(fname, old_value),
-                    new=line._format_tracked_value(fname, new_value),
-                ))
-            if changes:
-                body = Markup(_(
-                    "Línea de venta <b>%(product)s</b> modificada por %(user)s:<br/>%(changes)s",
-                    product=html_escape(line.product_id.display_name or line.name or ''),
-                    user=html_escape(self.env.user.display_name),
-                    changes='<br/>'.join(str(c) for c in changes),
-                ))
+                change_items += Markup(
+                    '<li><b>%s</b>: '
+                    '<span style="color:#dc3545;text-decoration:line-through;">%s</span>'
+                    ' <b>&#8594;</b> '
+                    '<span style="color:#28a745;font-weight:bold;">%s</span></li>'
+                ) % (
+                    label,
+                    line._format_tracked_value(fname, old_value),
+                    line._format_tracked_value(fname, new_value),
+                )
+            if change_items:
+                body = Markup(
+                    '<div>%s <b style="color:#875a7b;">%s</b> %s <b>%s</b>:</div>'
+                    '<ul style="margin-bottom:0;">%s</ul>'
+                ) % (
+                    _("Línea de venta"),
+                    line.product_id.display_name or line.name or '',
+                    _("modificada por"),
+                    self.env.user.display_name,
+                    change_items,
+                )
                 line.order_id.message_post(body=body)
 
         return result
