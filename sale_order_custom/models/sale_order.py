@@ -3,15 +3,12 @@ from markupsafe import Markup
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
-from odoo.tools import float_compare, html_escape
+from odoo.tools import float_compare, formatLang, html_escape
 
 
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
-    allow_zero_margin_confirmation = fields.Boolean(
-        string="Permitir Cotización en 0",
-    )
     contract_global_due_date = fields.Date(
         string="Vencimiento Global del Contrato",
     )
@@ -71,29 +68,16 @@ class SaleOrder(models.Model):
         for order in self:
             order.order_line.filtered(lambda l: not l.display_type).action_reset_margin_approval()
 
-    def _check_general_margin_not_negative(self):
-        """Valida directamente el valor del campo `margin_percent` de la
-        orden, antes de mover ninguna línea, sin depender de filtrados sobre
-        order_line. Usa float_compare con precisión fija para evitar falsos
-        positivos por residuos de punto flotante (ej. un margen de 19.9999%
-        que en pantalla se ve como 20%). Se omite por completo si la orden
-        tiene marcado `allow_zero_margin_confirmation`."""
-        self.ensure_one()
-        if self.allow_zero_margin_confirmation:
-            return
-        if float_compare(self.margin_percent, 0.20, precision_digits=4) <= 0:
-            raise UserError(_(
-                "No se puede confirmar la cotización: el margen general (%s%%) "
-                "es igual o menor al 20%%."
-            ) % round(self.margin_percent * 100, 2))
-
     def _check_margin_decisions_defined(self):
         """Toda línea decidible (no sección/nota) debe tener una decisión de
-        margen explícita -aprobado o rechazado-, sin importar el signo del
-        margen, antes de poder confirmar, enviar o imprimir la cotización.
-        Se omite por completo si el margen general de la orden ya es mayor o
-        igual al 35%: en ese caso no hace falta decisión línea por línea."""
+        margen explícita -aprobado o rechazado- antes de poder confirmar,
+        enviar o imprimir la cotización, pero solo si el margen general de
+        la orden es menor al 35%: si ya es mayor o igual, no hace falta
+        decisión línea por línea. Se omite por completo, además, si el
+        usuario actual tiene marcado `skip_margin_validations`."""
         self.ensure_one()
+        if self.env.user.skip_margin_validations:
+            return
         if float_compare(self.margin_percent, 0.35, precision_digits=4) >= 0:
             return
         pending_lines = self.order_line.filtered(
@@ -140,8 +124,6 @@ class SaleOrder(models.Model):
     def action_confirm(self):
         for order in self:
             order._check_margin_decisions_defined()
-        for order in self:
-            order._check_general_margin_not_negative()
         for order in self:
             order._split_rejected_margin_lines()
         return super().action_confirm()
@@ -241,12 +223,22 @@ class SaleOrderLine(models.Model):
 
     def _log_margin_decision(self, action_label):
         for line in self:
-            body = Markup(_(
-                "%(user)s %(action)s el margen de la línea <b>%(product)s</b>.",
-                user=html_escape(self.env.user.display_name),
-                action=action_label,
-                product=html_escape(line.product_id.display_name or line.name or ''),
-            ))
+            currency = line.currency_id or line.order_id.currency_id
+            body = Markup(
+                "<p style=\"margin:0;\"><b>%(user)s</b> %(action)s el margen "
+                "de la línea <b>%(product)s</b>:</p>"
+                "<ul style=\"margin:4px 0 0 0; padding-left:20px;\">"
+                "<li>Precio unitario: <b>%(price)s</b></li>"
+                "<li>Margen: <b>%(margin)s</b> (%(margin_percent)s%%)</li>"
+                "</ul>"
+            ) % {
+                'user': html_escape(self.env.user.display_name),
+                'action': html_escape(action_label),
+                'product': html_escape(line.product_id.display_name or line.name or ''),
+                'price': formatLang(self.env, line.price_unit, currency_obj=currency),
+                'margin': formatLang(self.env, line.margin, currency_obj=currency),
+                'margin_percent': round(line.margin_percent * 100, 2),
+            }
             line.order_id.message_post(body=body)
 
     @api.model

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_sale_order_line_purchase_demand_list" model="ir.ui.view">
+        <field name="name">sale.order.line.purchase.demand.list</field>
+        <field name="model">sale.order.line</field>
+        <field name="arch" type="xml">
+            <list string="Líneas de Venta por Comprar" create="false" edit="false" delete="false">
+                <header>
+                    <button name="action_create_purchase_orders" type="object"
+                            string="Crear Orden(es) de Compra" class="btn-primary"/>
+                </header>
+                <field name="order_id"/>
+                <field name="order_partner_id" string="Cliente"/>
+                <field name="product_id"/>
+                <field name="exwork"/>
+                <field name="price_unit" string="Precio de Venta"/>
+                <field name="margin" string="Margen"/>
+                <field name="product_uom_qty" string="Cantidad Pedida"/>
+                <field name="product_qty_available" string="Cantidad Disponible en Inventario"/>
+                <field name="qty_reserved_delivery" string="Cantidad Reservada para el Pedido"/>
+                <field name="qty_to_purchase" string="Cantidad a Comprar"/>
+                <field name="purchase_proveedor_id" string="Proveedor"/>
+                <field name="purchase_currency_id" string="Moneda Proveedor"/>
+                <field name="product_uom_id" string="UdM"/>
+                <field name="qty_purchased" string="Cantidad Comprada"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_sale_order_line_purchase_demand_search" model="ir.ui.view">
+        <field name="name">sale.order.line.purchase.demand.search</field>
+        <field name="model">sale.order.line</field>
+        <field name="arch" type="xml">
+            <search string="Líneas de Venta por Comprar">
+                <field name="order_id"/>
+                <field name="order_partner_id" string="Cliente"/>
+                <field name="product_id"/>
+                <field name="purchase_proveedor_id" string="Proveedor"/>
+                <filter name="filter_pending_purchase" string="Pendientes por Comprar"
+                        domain="[('order_id.state', '=', 'sale'), ('qty_to_purchase', '&gt;', 0)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_sale_order_line_purchase_demand" model="ir.actions.act_window">
+        <field name="name">Líneas de Venta por Comprar</field>
+        <field name="res_model">sale.order.line</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_sale_order_line_purchase_demand_list"/>
+        <field name="search_view_id" ref="view_sale_order_line_purchase_demand_search"/>
+        <field name="domain">[('display_type', '=', False), ('is_downpayment', '=', False)]</field>
+        <field name="context">{'search_default_filter_pending_purchase': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No hay líneas de venta pendientes por comprar.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_sale_order_line_purchase_demand"
+        name="Compra por Demanda"
+        parent="purchase.menu_procurement_management"
+        action="action_sale_order_line_purchase_demand"
+        sequence="7"/>
+
+</odoo>

@@ -10,3 +10,6 @@ class ResUsers(models.Model):
     show_confirm_button_sale = fields.Boolean(
         string="Mostrar Botón de Confirmar en Ventas", default=True,
     )
+    skip_margin_validations = fields.Boolean(
+        string="Omitir Validaciones de Margen en Ventas",
+    )

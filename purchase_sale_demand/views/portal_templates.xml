@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="approval_result_page" name="Resultado de Aprobación de Compra">
+        <html>
+            <head>
+                <title>Aprobación de Compra</title>
+            </head>
+            <body style="font-family: sans-serif; text-align: center; margin-top: 80px;">
+                <h2>Orden de Compra <t t-esc="order.name"/></h2>
+                <t t-if="order.state == 'purchase'">
+                    <p style="color: #28a745; font-size: 20px;">
+                        ✔ La orden ha sido aprobada y confirmada exitosamente.
+                    </p>
+                </t>
+                <t t-elif="order.state == 'cancel'">
+                    <p>Esta orden fue cancelada y ya no puede aprobarse.</p>
+                </t>
+                <t t-else="">
+                    <p>Esta orden ya no está pendiente de aprobación (estado actual: <t t-esc="order.state"/>).</p>
+                </t>
+            </body>
+        </html>
+    </template>
+
+</odoo>

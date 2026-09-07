@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <record id="paperformat_delivery_custom" model="report.paperformat">
+            <field name="name">Guía de Entrega (Horizontal)</field>
+            <field name="format">A4</field>
+            <field name="orientation">Landscape</field>
+            <field name="margin_top">10</field>
+            <field name="margin_bottom">10</field>
+            <field name="margin_left">7</field>
+            <field name="margin_right">7</field>
+            <field name="header_line" eval="False"/>
+            <field name="header_spacing">15</field>
+            <field name="dpi">90</field>
+        </record>
+
+        <record id="report_delivery_custom" model="ir.actions.report">
+            <field name="name">Guía de Entrega</field>
+            <field name="model">stock.picking</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">stock_picking_custom.report_delivery_custom_document</field>
+            <field name="report_file">stock_picking_custom.report_delivery_custom_document</field>
+            <field name="print_report_name">'Guia de Entrega - %s - %s' % (object.partner_id.name or '', object.name)</field>
+            <field name="paperformat_id" ref="paperformat_delivery_custom"/>
+            <field name="binding_model_id" ref="stock.model_stock_picking"/>
+            <field name="binding_type">report</field>
+        </record>
+
+        <!-- El reporte estándar "Delivery Slip" queda instalado (por si algo
+             más lo referencia) pero se le quita el binding para que ya no
+             aparezca en el menú genérico de impresión de la transferencia;
+             el botón "Print" del formulario se redirige más abajo. -->
+        <record id="stock.action_report_delivery" model="ir.actions.report">
+            <field name="binding_model_id" eval="False"/>
+        </record>
+
+    </data>
+</odoo>

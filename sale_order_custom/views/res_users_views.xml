@@ -17,8 +17,13 @@
                         Permite editar manualmente el precio unitario de las líneas de venta.
                     </div>
                     <field name="show_confirm_button_sale" widget="boolean_toggle"/>
-                    <div colspan="2" class="text-muted">
+                    <div colspan="2" class="text-muted mb-2">
                         Muestra los botones de Confirmar y Enviar en las órdenes de venta.
+                    </div>
+                    <field name="skip_margin_validations" widget="boolean_toggle"/>
+                    <div colspan="2" class="text-muted">
+                        Omite las validaciones de margen (decisión por línea y margen
+                        general mínimo) al confirmar, enviar o imprimir cotizaciones.
                     </div>
                 </group>
             </xpath>

@@ -33,13 +33,17 @@ class SaleOrderLine(models.Model):
     )
 
     def _has_manual_price(self):
+        # Regla explícita del negocio: un precio distinto de 0 nunca se debe
+        # recalcular automáticamente (sin importar si llegó ahí por una
+        # edición manual o por un cálculo previo); solo se toca si el precio
+        # sigue en 0, o si se fuerza desde el botón "Actualizar Precios".
         self.ensure_one()
         currency = (
             self.currency_id
             or self.company_id.currency_id
             or self.env.company.currency_id
         )
-        return bool(currency.compare_amounts(self.technical_price_unit, self.price_unit))
+        return not currency.is_zero(self.price_unit)
 
     def _get_pricelist_kwargs(self):
         kwargs = super()._get_pricelist_kwargs()
@@ -225,18 +229,33 @@ class SaleOrderLine(models.Model):
         "seller_mismatch",
     )
     def _compute_price_unit(self):
-        super()._compute_price_unit()
         force_recompute = self.env.context.get('force_price_recomputation')
-        for line in self:
-            if not line.order_id or line.is_downpayment or line._is_global_discount():
-                continue
 
-            # Igual que el core (`has_manual_price` en sale.order.line):
-            # si el precio fue editado a mano, no se debe pisar en recálculos
-            # posteriores (p. ej. al confirmar la orden), salvo que el
-            # recálculo se haya pedido explícitamente (botón "Actualizar
-            # Precios", que pasa `force_price_recomputation` en el contexto).
-            if not force_recompute and line._has_manual_price():
+        # Igual que el core (`has_manual_price` en sale.order.line): si el
+        # precio fue editado a mano, no se debe pisar en recálculos
+        # posteriores (p. ej. al confirmar la orden, que siempre reescribe
+        # `date_order` y eso dispara este compute vía `exwork`/`trm`/etc.),
+        # salvo que el recálculo se haya pedido explícitamente (botón
+        # "Actualizar Precios", que pasa `force_price_recomputation`).
+        # OJO: el `super()` (core) NO debe llamarse para estas líneas
+        # protegidas -- su propia protección compara `technical_price_unit`
+        # contra `price_unit`, que en nuestro flujo suelen quedar iguales a
+        # propósito, así que el core las trataría como "no manuales" y
+        # las resetearía con su propia lógica de lista de precios estándar.
+        def is_protected(line):
+            return bool(
+                line.order_id
+                and not line.is_downpayment
+                and not line._is_global_discount()
+                and not force_recompute
+                and line._has_manual_price()
+            )
+
+        to_process = self.filtered(lambda line: not is_protected(line))
+        super(SaleOrderLine, to_process)._compute_price_unit()
+
+        for line in to_process:
+            if not line.order_id or line.is_downpayment or line._is_global_discount():
                 continue
 
             if line.product_id and line._is_kit():

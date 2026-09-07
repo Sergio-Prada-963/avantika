@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="report_custom_invoice_document">
+        <t t-set="doc" t-value="doc.with_context(lang=doc.partner_id.lang or doc.company_id.partner_id.lang)"/>
+        <t t-set="company" t-value="doc.company_id"/>
+        <div class="article" t-att-data-oe-model="doc._name" t-att-data-oe-id="doc.id">
+            <div class="page" style="font-size:10px;">
+                <!-- TODO: seguir armando el diseño definitivo de la factura
+                     electrónica. Esto es un punto de partida funcional
+                     mientras se termina de definir el resto de la
+                     plantilla. -->
+                <div class="row mb-4">
+                    <div class="col-3 text-center">
+                        <img t-if="company.logo" t-att-src="image_data_uri(company.logo)"
+                             style="max-height:100px; max-width:100%;" alt="Logo"/>
+                    </div>
+                    <div class="col-4">
+                        <strong t-field="company.name"/><br/>
+                        <span>NIT: <span t-field="company.vat"/></span><br/>
+                        <span t-field="company.partner_id"
+                              t-options="{'widget': 'contact', 'fields': ['address'], 'no_marker': True}"/>
+                        <span t-if="company.email">Email: <span t-field="company.email"/><br/></span>
+                        <span t-if="company.website">Página web: <span t-field="company.website"/><br/></span>
+                        <span t-if="company.phone">Teléfono: <span t-field="company.phone"/></span>
+                    </div>
+                    <div class="col-3">
+                        <div>No somos grandes contribuyentes</div>
+                        <div>IVA Régimen Común</div>
+                        <div>No somos agentes de retención de IVA</div>
+                        <div>No somos autoretenedores</div>
+                        <div t-if="company.economic_activity_code" class="mt-2">
+                            Actividad económica:
+                            <span t-field="company.economic_activity_code"/> -
+                            <span t-field="company.economic_activity_name"/>
+                        </div>
+                    </div>
+                    <div class="col-2 text-center">
+                        <div t-if="doc.qr_code">
+                            <img t-att-src="image_data_uri(doc.qr_code)" style="max-width:100%;" alt="QR DIAN"/>
+                        </div>
+                        <!-- TODO: quitar este QR de ejemplo cuando `doc.qr_code`
+                             se llene con el QR real emitido por la DIAN. -->
+                        <div t-else="">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="90" height="90">
+                                <rect width="100" height="100" fill="white"/>
+                                <g fill="black">
+                                    <rect x="0" y="0" width="30" height="30"/>
+                                    <rect x="8" y="8" width="14" height="14" fill="white"/>
+                                    <rect x="70" y="0" width="30" height="30"/>
+                                    <rect x="78" y="8" width="14" height="14" fill="white"/>
+                                    <rect x="0" y="70" width="30" height="30"/>
+                                    <rect x="8" y="78" width="14" height="14" fill="white"/>
+                                    <rect x="40" y="10" width="6" height="6"/>
+                                    <rect x="50" y="10" width="6" height="6"/>
+                                    <rect x="40" y="20" width="6" height="6"/>
+                                    <rect x="55" y="40" width="6" height="6"/>
+                                    <rect x="45" y="45" width="6" height="6"/>
+                                    <rect x="35" y="50" width="6" height="6"/>
+                                    <rect x="60" y="55" width="6" height="6"/>
+                                    <rect x="40" y="60" width="6" height="6"/>
+                                    <rect x="50" y="65" width="6" height="6"/>
+                                    <rect x="65" y="35" width="6" height="6"/>
+                                    <rect x="35" y="35" width="6" height="6"/>
+                                </g>
+                            </svg>
+                            <div>(QR de ejemplo)</div>
+                        </div>
+                        <div t-if="doc.delivery_date" class="mt-1">
+                            Fecha de entrega de bienes:
+                            <span t-field="doc.delivery_date"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-start">
+                    <strong>
+                        <span t-if="doc.move_type == 'out_invoice'">Representación Gráfica De Factura Electrónica De Venta</span>
+                        <span t-if="doc.move_type == 'out_refund'">Representación Gráfica De Nota Crédito Electrónica</span>
+                    </strong>
+                    <span t-if="doc.delivery_date">
+                        <strong>Fecha Entrega Bienes:</strong> <span t-field="doc.delivery_date"/>
+                    </span>
+                </div>
+                <div t-if="doc.cufe" style="word-break:break-all;">
+                    <strong>CUFE:</strong><span t-field="doc.cufe"/>
+                </div>
+
+                <table class="table table-bordered mt-2">
+                    <tr>
+                        <td style="width:33%;" valign="top">
+                            <strong>SEÑORES:</strong> <span t-field="doc.partner_id.vat"/><br/>
+                            <span t-field="doc.partner_id.name"/><br/>
+                            <span t-field="doc.partner_id.street"/><br/>
+                            Tel <span t-field="doc.partner_id.phone"/><br/>
+                            <span t-field="doc.partner_id.city"/> - <span t-field="doc.partner_id.state_id.name"/><br/>
+                            <span t-field="doc.partner_id.country_id.name"/>
+                        </td>
+                        <td style="width:33%;" valign="top">
+                            <t t-set="shipping_partner" t-value="doc.partner_shipping_id or doc.partner_id"/>
+                            <strong>DESPACHADO A:</strong> <span t-field="shipping_partner.vat"/><br/>
+                            <span t-field="shipping_partner.street"/><br/>
+                            Tel <span t-field="shipping_partner.phone"/><br/>
+                            <span t-field="shipping_partner.city"/><br/>
+                            <span t-field="shipping_partner.country_id.name"/>
+                        </td>
+                        <td style="width:34%; padding:0;" valign="top">
+                            <table class="table table-bordered mb-0">
+                                <tr>
+                                    <td class="text-center"><strong>ORDEN DE COMPRA</strong><br/><span t-field="doc.ref"/></td>
+                                    <td class="text-center" style="background-color:#e9e9e9;">
+                                        <strong>
+                                            <span t-if="doc.move_type == 'out_invoice'">FACTURA ELECTRÓNICA DE VENTA</span>
+                                            <span t-if="doc.move_type == 'out_refund'">NOTA CRÉDITO ELECTRÓNICA</span>
+                                        </strong><br/>
+                                        <span t-field="doc.name"/>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center"><strong>RUTA</strong><br/>&#160;</td>
+                                    <td class="text-center"><strong>FECHA GENERACIÓN</strong><br/><span t-field="doc.create_date"/></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center"><strong>PEDIDO</strong><br/><span t-field="doc.invoice_origin"/></td>
+                                    <td class="text-center"><strong>FECHA VENCIMIENTO</strong><br/><span t-field="doc.invoice_date_due"/></td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+                <t t-set="order_lines" t-value="doc.invoice_line_ids.filtered(lambda l: l.display_type == 'product')"/>
+                <t t-set="line_taxes" t-value="order_lines.tax_ids"/>
+
+                <table class="table table-bordered table-sm">
+                    <thead>
+                        <tr>
+                            <th rowspan="2" class="text-center" valign="middle">REFERENCIA</th>
+                            <th rowspan="2" class="text-center" valign="middle">DESCRIPCIÓN</th>
+                            <th rowspan="2" class="text-center" valign="middle">CANTIDAD</th>
+                            <th rowspan="2" class="text-center" valign="middle">U/M</th>
+                            <th rowspan="2" class="text-center" valign="middle">VALOR UNITARIO</th>
+                            <th rowspan="2" class="text-center" valign="middle">% DESCUENTO</th>
+                            <th colspan="2" class="text-center">IMPUESTO</th>
+                            <th rowspan="2" class="text-center" valign="middle">VALOR NETO</th>
+                            <th rowspan="2" class="text-center" valign="middle">VALOR TOTAL</th>
+                        </tr>
+                        <tr>
+                            <th class="text-center">%</th>
+                            <th class="text-center">VALOR</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="order_lines" t-as="line">
+                            <td><span t-field="line.product_id.default_code"/></td>
+                            <td>
+                                <span t-esc="line_index + 1"/>.
+                                [<span t-field="line.product_id.default_code"/>]
+                                <span t-field="line.product_id.name"/>
+                            </td>
+                            <td class="text-end"><span t-field="line.quantity"/></td>
+                            <td class="text-center"><span t-field="line.product_uom_id.name"/></td>
+                            <td class="text-end"><span t-field="line.price_unit"/></td>
+                            <td class="text-end"><span t-field="line.discount"/></td>
+                            <td class="text-center">
+                                <t t-foreach="line.tax_ids" t-as="tax">
+                                    <span t-esc="tax.name"/><t t-if="not tax_last">, </t>
+                                </t>
+                            </td>
+                            <td class="text-end"><span t-esc="line.price_total - line.price_subtotal" t-options="{'widget': 'monetary', 'display_currency': line.currency_id}"/></td>
+                            <td class="text-end"><span t-field="line.price_subtotal"/></td>
+                            <td class="text-end"><span t-field="line.price_total"/></td>
+                        </tr>
+                        <tr>
+                            <td/>
+                            <td>
+                                <strong>TRM:</strong>
+                                <span t-esc="'%.2f' % (doc.invoice_currency_rate or 1.0)"/>
+                                - <span t-field="doc.currency_id.name"/><br/>
+                                <strong>TOTAL NRO LINEAS:</strong> <span t-esc="len(order_lines)"/>
+                            </td>
+                            <td/><td/><td/><td/><td/><td/><td/><td/>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <table class="table table-bordered mb-0">
+                    <tr>
+                        <td style="width:50%; border-bottom:none;" valign="top">
+                            <strong>OBSERVACIONES:</strong><br/>
+                            <span t-field="doc.narration">N/A</span>
+                            <div class="mt-2">
+                                Medio de Pago: Instrumento no definido<br/>
+                                Forma de Pago: <span t-field="doc.invoice_payment_term_id.name">Contado</span><br/>
+                                VALOR LETRAS: <span t-esc="doc.currency_id.amount_to_text(doc.amount_total)"/><br/>
+                                CONDICIONES DE PAGO: Plazo de pago:
+                                <span t-field="doc.invoice_payment_term_id.name">Pago inmediato</span>
+                            </div>
+                        </td>
+                        <td style="width:20%;" class="text-center" valign="top">
+                            <strong>TOTAL UNIDADES:</strong>
+                            <span t-esc="sum(order_lines.mapped('quantity'))"/>
+                        </td>
+                        <td style="width:30%; padding:0;" valign="top">
+                            <table class="table table-sm mb-0" style="table-layout:fixed; width:100%;">
+                                <tr>
+                                    <td><strong>TOTAL BRUTO</strong></td>
+                                    <td class="text-end"><span t-field="doc.amount_untaxed"/></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>DESCUENTO</strong></td>
+                                    <td class="text-end">&#160;</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <strong>
+                                            <t t-foreach="line_taxes" t-as="tax">
+                                                <span t-esc="tax.name"/><t t-if="not tax_last">, </t>
+                                            </t>
+                                        </strong>
+                                    </td>
+                                    <td class="text-end"><span t-field="doc.amount_tax"/></td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="border-top:none;">&#160;</td>
+                        <td colspan="2" class="text-end" style="background-color:#e9e9e9;" valign="middle">
+                            <strong>
+                                VR. TOTAL FACTURA <span t-field="doc.currency_id.name"/>:
+                                <span t-field="doc.amount_total"/>
+                            </strong>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="3">
+                            <strong>REMISIÓN:</strong> <span t-field="doc.invoice_origin"/>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <div class="footer" style="font-size:10px;">
+            <div class="d-flex justify-content-between">
+                <span t-if="company.dian_resolution_number">
+                    <strong>RESOLUCIÓN DIAN No.<span t-field="company.dian_resolution_number"/></strong>
+                    FECHA VIGENCIA DESDE <span t-field="company.dian_resolution_date_from"/>
+                    HASTA <span t-field="company.dian_resolution_date_to"/>
+                    NUMERACIÓN DEL No. <span t-field="company.dian_resolution_range_from"/>
+                    AL <span t-field="company.dian_resolution_range_to"/>
+                </span>
+                <strong>Página <span class="page"/> de <span class="topage"/></strong>
+            </div>
+            <div t-if="doc.dian_validation_date">
+                Fecha Validación DIAN: <span t-field="doc.dian_validation_date"/>
+            </div>
+            <div>
+                Proveedor Tecnológico: Odoo S.A.S - Nit de otro pais: 901.851.916
+            </div>
+        </div>
+    </template>
+
+    <template id="report_custom_invoice">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="account_move_custom.report_custom_invoice_document" t-lang="doc.partner_id.lang"/>
+            </t>
+        </t>
+    </template>
+
+</odoo>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_purchase_order_form_approval_by_email" model="ir.ui.view">
+        <field name="name">purchase.order.form.approval.by.email</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@id='bid_confirm']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//button[@id='draft_confirm']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//button[@name='button_approve']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//button[@id='draft_confirm']" position="after">
+                <button name="action_send_for_approval" type="object"
+                        string="Enviar Aprobación"
+                        invisible="state != 'draft'"
+                        class="oe_highlight" data-hotkey="v"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
