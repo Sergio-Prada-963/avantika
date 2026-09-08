@@ -7,7 +7,12 @@
         <field name="inherit_id" ref="purchase.purchase_order_form"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='order_line']//list//field[@name='product_id']" position="after">
-                <field name="sale_order_ids" widget="many2many_tags" optional="show"/>
+                <field name="sale_line_id" string="Orden de Venta" optional="show"
+                    options="{'no_create': True}"
+                    domain="[('display_type', '=', False), ('is_downpayment', '=', False),
+                             ('order_id.state', '=', 'sale'), ('qty_to_purchase', '&gt;', 0),
+                             '!', ('move_ids.picking_id.state', '=', 'cancel'),
+                             ('product_id', '=', product_id)]"/>
             </xpath>
         </field>
     </record>

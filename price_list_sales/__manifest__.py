@@ -14,6 +14,7 @@ Módulo base para el cálculo de listas de precios de venta.
     'depends': [
         'sale',
         'account',
+        'sale_margin',
         'product',
         'contacts',
         'account_manual_currency_rate',

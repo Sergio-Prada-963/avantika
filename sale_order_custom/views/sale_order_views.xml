@@ -59,12 +59,6 @@
                 <attribute name="invisible">state != 'draft' or not show_confirm_button</attribute>
                 <attribute name="class">btn-primary</attribute>
             </xpath>
-            <xpath expr="//button[@id='quotation_send_primary']" position="attributes">
-                <attribute name="invisible">state != 'draft' or not show_confirm_button</attribute>
-            </xpath>
-            <xpath expr="//button[@id='quotation_send']" position="attributes">
-                <attribute name="invisible">state not in ('sent', 'sale') or not show_confirm_button</attribute>
-            </xpath>
 
             <xpath expr="//field[@name='sale_order_template_id']" position="after">
                 <field name="has_margin_lines" invisible="1"/>

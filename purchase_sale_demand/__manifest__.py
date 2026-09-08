@@ -18,9 +18,12 @@ cantidad comprada se refleja en la línea de venta correspondiente.
 
 También agrega un flujo de aprobación de compras por correo: el botón
 nativo de confirmar/aprobar se oculta en borrador, enviada y por aprobar,
-reemplazado por un botón "Enviar Aprobación" que envía un correo al
-"Usuario que Aprueba Compras" configurado en Ajustes > Compras, con un
-enlace de un clic (sin necesidad de iniciar sesión) que confirma la orden.
+reemplazado por un botón "Enviar Aprobación" que arma una previsualización
+del margen de la orden (y de sus kits, si aplica) y abre el compositor de
+correo estándar de Odoo, listo para enviar al "Usuario que Aprueba Compras"
+configurado en Ajustes > Compras. Al enviar el correo, la orden pasa a
+"Por Aprobar"; el correo incluye un botón "Aprobar" (enlace de un clic, sin
+necesidad de iniciar sesión) que confirma la orden directamente.
 """,
     'author': 'Sergio Rodriguez',
     'license': 'LGPL-3',
@@ -32,15 +35,17 @@ enlace de un clic (sin necesidad de iniciar sesión) que confirma la orden.
         'price_list_sales',
         'portal',
         'mail',
+        'mrp',
     ],
     'data': [
         'security/ir.model.access.csv',
+        'data/purchase_order_approval_server_action.xml',
+        'views/sale_order_views.xml',
         'views/sale_order_line_views.xml',
         'views/purchase_order_views.xml',
         'views/purchase_order_approval_views.xml',
         'views/res_config_settings_views.xml',
         'views/portal_templates.xml',
-        'wizard/purchase_approval_send_wizard_views.xml',
     ],
     'installable': True,
     'application': False,

@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <record id="action_server_purchase_approval_preview" model="ir.actions.server">
+            <field name="name">Previsualizar Aprobación de Compra (Margen)</field>
+            <field name="model_id" ref="purchase.model_purchase_order"/>
+            <field name="state">code</field>
+            <field name="code"><![CDATA[
+# ------------------------------------------------
+# SECCIÓN 0 ► CONFIGURACIÓN
+# ------------------------------------------------
+MARGEN_MINIMO = 12.0  # % - TODO: ajustar umbral real
+
+def fmt(v):
+    return '${:,.0f}'.format(v).replace(',', '.')
+
+def margen(vendido, comprado):
+    utilidad = vendido - comprado
+    pct = (utilidad / vendido * 100) if vendido else 0
+    return utilidad, pct
+
+base_url = env['ir.config_parameter'].sudo().get_param('web.base.url')
+
+# La previsualización (wizard mail.compose.message) solo puede mostrar
+# un registro a la vez. Si seleccionaron varias OC, avisamos en vez de
+# intentar abrir varios wizards.
+if len(records) != 1:
+    raise UserError('Selecciona una sola orden de compra para previsualizar su aprobación antes de enviarla.')
+
+po = records[0]
+
+# El destinatario es el "Usuario que Aprueba Compras" configurado en
+# Ajustes > Compras (res.company.purchase_approval_user_id), no un correo
+# fijo en el código.
+aprobador = po.company_id.purchase_approval_user_id
+if not aprobador or not aprobador.email:
+    raise UserError(
+        'Configura un "Usuario que Aprueba Compras" (con correo electrónico '
+        'cargado) en Ajustes > Compras antes de enviar una orden a aprobación.'
+    )
+EMAIL_APROBADOR = aprobador.email
+
+# ------------------------------------------------
+# SECCIÓN 1 ► PROCESAR LA ORDEN SELECCIONADA
+# ------------------------------------------------
+kits_procesados = set()
+
+num_oc = po.name
+fecha_oc = po.date_order.strftime('%d/%m/%Y') if po.date_order else ''
+proveedor = po.partner_id.name or ''
+
+venta = env['sale.order'].search([('name', '=', po.origin)], limit=1)
+num_ov = venta.name if venta else (po.origin or 'N/A')
+fecha_ov = venta.date_order.strftime('%d/%m/%Y') if venta and venta.date_order else 'N/A'
+cliente = venta.partner_id.name if venta else 'N/A'
+
+filas_html = ''
+filas_kits_html = ''
+total_vendido = 0.0
+total_comprado = 0.0
+
+for line in po.order_line:
+    producto = line.product_id
+    comprado = line.price_subtotal
+    vendido = producto.list_price * line.product_qty
+
+    bom_propio = env['mrp.bom'].search([
+        ('product_tmpl_id', '=', producto.product_tmpl_id.id),
+        ('type', '=', 'phantom'),
+    ], limit=1)
+
+    if bom_propio:
+        comp_vendido = 0.0
+        comp_comprado = 0.0
+        filas_componentes = ''
+        for bl in bom_propio.bom_line_ids:
+            comp = bl.product_id
+            cant = bl.product_qty * line.product_qty
+            v = comp.list_price * cant
+            c = comp.standard_price * cant
+            comp_vendido += v
+            comp_comprado += c
+            u, p = margen(v, c)
+            filas_componentes += (
+                '<tr><td style="padding-left:20px;color:#888;">- %s</td>'
+                '<td style="text-align:right;color:#888;">%s</td>'
+                '<td style="text-align:right;color:#888;">%s</td>'
+                '<td style="text-align:right;color:#888;">%s</td>'
+                '<td style="text-align:right;color:#888;">%.1f%%</td></tr>'
+            ) % (comp.name, fmt(v), fmt(c), fmt(u), p)
+
+        vendido, comprado = comp_vendido, comp_comprado
+        utilidad, pct = margen(vendido, comprado)
+        color = '#B71244' if pct < MARGEN_MINIMO else '#0F6E56'
+        filas_html += (
+            '<tr style="background:#f5f5f5;font-weight:bold;">'
+            '<td>%s</td><td style="text-align:right;">%s</td>'
+            '<td style="text-align:right;">%s</td><td style="text-align:right;">%s</td>'
+            '<td style="text-align:right;color:%s;">%.1f%%</td></tr>'
+        ) % (producto.name, fmt(vendido), fmt(comprado), fmt(utilidad), color, pct)
+        filas_html += filas_componentes
+
+    else:
+        utilidad, pct = margen(vendido, comprado)
+        color = '#B71244' if pct < MARGEN_MINIMO else '#0F6E56'
+
+        boms_padre = env['mrp.bom.line'].search([
+            ('product_id', '=', producto.id),
+            ('bom_id.type', '=', 'phantom'),
+        ])
+        etiqueta_kit = ''
+        if boms_padre:
+            nombres = ', '.join(bl.bom_id.product_tmpl_id.name for bl in boms_padre)
+            etiqueta_kit = ' <span style="color:#888;font-size:11px;">(pieza de kit: %s)</span>' % nombres
+
+        filas_html += (
+            '<tr><td>%s%s</td><td style="text-align:right;">%s</td>'
+            '<td style="text-align:right;">%s</td><td style="text-align:right;">%s</td>'
+            '<td style="text-align:right;color:%s;">%.1f%%</td></tr>'
+        ) % (producto.name, etiqueta_kit, fmt(vendido), fmt(comprado), fmt(utilidad), color, pct)
+
+        for bl in boms_padre:
+            kit_bom = bl.bom_id
+            if kit_bom.id in kits_procesados:
+                continue
+            kits_procesados.add(kit_bom.id)
+
+            kit_producto = kit_bom.product_tmpl_id
+            kit_vendido = kit_producto.list_price
+
+            filas_comp_kit = ''
+            total_comprado_kit = 0.0
+            for comp_line in kit_bom.bom_line_ids:
+                comp = comp_line.product_id
+
+                linea_compra = env['purchase.order.line']
+                vinculada_a_esta_venta = False
+
+                if venta:
+                    linea_compra = env['purchase.order.line'].search([
+                        ('product_id', '=', comp.id),
+                        ('order_id.origin', '=', venta.name),
+                        ('order_id.state', '!=', 'cancel'),
+                    ], order='create_date desc', limit=1)
+                    if linea_compra:
+                        vinculada_a_esta_venta = True
+
+                if not linea_compra:
+                    linea_compra = env['purchase.order.line'].search([
+                        ('product_id', '=', comp.id),
+                        ('order_id.state', 'in', ['purchase', 'done']),
+                    ], order='create_date desc', limit=1)
+
+                if linea_compra:
+                    valor_comp = (linea_compra.price_subtotal / linea_compra.product_qty) * comp_line.product_qty
+                    oc_comp = linea_compra.order_id.name
+                    prov_comp = linea_compra.order_id.partner_id.name
+                    if vinculada_a_esta_venta:
+                        estado_txt = 'Comprado (para esta venta)'
+                    else:
+                        estado_txt = 'Comprado (OC no ligada a esta venta, puede ser de otro pedido/stock)'
+                else:
+                    valor_comp = comp.standard_price * comp_line.product_qty
+                    oc_comp = '-'
+                    prov_comp = '-'
+                    estado_txt = 'Sin comprar (costo estimado)'
+
+                total_comprado_kit += valor_comp
+                filas_comp_kit += (
+                    '<tr><td style="padding-left:20px;color:#888;">- %s</td>'
+                    '<td style="color:#888;">%s</td><td style="color:#888;">%s</td>'
+                    '<td style="text-align:right;color:#888;">%s</td>'
+                    '<td style="color:#888;">%s</td></tr>'
+                ) % (comp.name, oc_comp, prov_comp, fmt(valor_comp), estado_txt)
+
+            utilidad_kit, pct_kit = margen(kit_vendido, total_comprado_kit)
+            color_kit = '#B71244' if pct_kit < MARGEN_MINIMO else '#0F6E56'
+            filas_kits_html += (
+                '<tr style="background:#333;"><td colspan="5" style="color:#fff;padding:8px 0 4px;font-weight:bold;">'
+                'KIT: %s &nbsp;|&nbsp; Vendido %s &nbsp;|&nbsp; Comprado (todas las OC) %s &nbsp;|&nbsp; '
+                'Utilidad %s &nbsp;|&nbsp; <span style="color:%s;">%.1f%%</span></td></tr>'
+            ) % (kit_producto.name, fmt(kit_vendido), fmt(total_comprado_kit), fmt(utilidad_kit), color_kit, pct_kit)
+            filas_kits_html += '<tr><td colspan="5"><table style="width:100%%;font-size:12px;">%s</table></td></tr>' % filas_comp_kit
+
+    total_vendido += vendido
+    total_comprado += comprado
+
+utilidad_total = total_vendido - total_comprado
+pct_ponderado = (utilidad_total / total_vendido * 100) if total_vendido else 0
+color_total = '#B71244' if pct_ponderado < MARGEN_MINIMO else '#0F6E56'
+link_po = '%s/odoo/purchase/%s' % (base_url, po.id)
+# Enlace de un clic (sin necesidad de iniciar sesión) que aprueba y
+# confirma la orden directamente; ver controllers/portal.py.
+link_aprobar = po.get_portal_url(suffix='/approve')
+
+bloque_kits = ''
+if filas_kits_html:
+    bloque_kits = '''
+    <h3 style="margin-top:20px;">Rentabilidad de Kits (comprados en varias ordenes/proveedores)</h3>
+    <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width:100%%;">
+        %s
+    </table>
+    ''' % filas_kits_html
+
+# ------------------------------------------------
+# SECCIÓN 2 ► CONSTRUCCIÓN DEL HTML
+# ------------------------------------------------
+html = '''
+<div style="font-family: Arial, sans-serif; font-size: 13px;">
+    <h2>Solicitud de aprobacion de compra - %(num_oc)s</h2>
+
+    <table cellpadding="4" cellspacing="0" style="margin-bottom:16px;">
+        <tr><td style="color:#888;">Orden de Compra</td><td><b>%(num_oc)s</b></td>
+            <td style="color:#888;padding-left:24px;">Fecha OC</td><td><b>%(fecha_oc)s</b></td></tr>
+        <tr><td style="color:#888;">Proveedor</td><td><b>%(proveedor)s</b></td>
+            <td style="color:#888;padding-left:24px;">Orden de Venta</td><td><b>%(num_ov)s</b></td></tr>
+        <tr><td style="color:#888;">Cliente</td><td><b>%(cliente)s</b></td>
+            <td style="color:#888;padding-left:24px;">Fecha OV</td><td><b>%(fecha_ov)s</b></td></tr>
+    </table>
+
+    <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width:100%%;">
+        <tr style="background:#eee;">
+            <th>Producto</th><th>Vendido</th><th>Comprado</th><th>Utilidad</th><th>%% Util.</th>
+        </tr>
+        %(filas)s
+        <tr style="font-weight:bold; border-top: 2px solid #333;">
+            <td>TOTAL</td><td style="text-align:right;">%(tot_vendido)s</td>
+            <td style="text-align:right;">%(tot_comprado)s</td>
+            <td style="text-align:right;">%(tot_utilidad)s</td>
+            <td style="text-align:right;color:%(color_total)s;">%(pct_total)s%%</td>
+        </tr>
+    </table>
+
+    %(bloque_kits)s
+
+    <p style="margin-top:24px;text-align:center;">
+        <a href="%(link_aprobar)s" style="background:#0F6E56;color:#fff;padding:12px 28px;
+           text-decoration:none;border-radius:4px;font-weight:bold;font-size:15px;
+           display:inline-block;margin-right:12px;">
+           ✔ Aprobar
+        </a>
+        <a href="%(link)s" style="background:#875A7B;color:#fff;padding:12px 28px;
+           text-decoration:none;border-radius:4px;font-weight:bold;font-size:15px;
+           display:inline-block;">
+           Ver orden en Odoo
+        </a>
+    </p>
+</div>
+''' % {
+    'num_oc': num_oc,
+    'fecha_oc': fecha_oc,
+    'proveedor': proveedor,
+    'num_ov': num_ov,
+    'fecha_ov': fecha_ov,
+    'cliente': cliente,
+    'filas': filas_html,
+    'tot_vendido': fmt(total_vendido),
+    'tot_comprado': fmt(total_comprado),
+    'tot_utilidad': fmt(utilidad_total),
+    'pct_total': '%.1f' % pct_ponderado,
+    'color_total': color_total,
+    'bloque_kits': bloque_kits,
+    'link': link_po,
+    'link_aprobar': link_aprobar,
+}
+
+# ------------------------------------------------
+# SECCIÓN 3 ► ABRIR PREVISUALIZACIÓN ANTES DE ENVIAR
+# ------------------------------------------------
+subject = 'Aprobacion de compra %s - Margen %.1f%%' % (num_oc, pct_ponderado)
+
+action = {
+    'type': 'ir.actions.act_window',
+    'name': 'Enviar aprobación de compra',
+    'res_model': 'mail.compose.message',
+    'view_mode': 'form',
+    'target': 'new',
+    'context': {
+        'default_composition_mode': 'comment',
+        'default_model': 'purchase.order',
+        'default_res_ids': [po.id],
+        'default_subject': subject,
+        'default_body': html,
+        'default_email_to': EMAIL_APROBADOR,
+        'default_partner_ids': [],
+        'default_use_template': False,
+        # Le indica a mail_compose_message.py que, al enviar este correo,
+        # debe pasar la orden a estado "to approve".
+        'purchase_approval_flow': True,
+    },
+}
+]]></field>
+        </record>
+
+    </data>
+</odoo>

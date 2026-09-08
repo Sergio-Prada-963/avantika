@@ -9,14 +9,6 @@
             <field name="vat" position="after">
                 <field name="economic_activity_code"/>
                 <field name="economic_activity_name"/>
-                <field name="dian_resolution_number"/>
-                <field name="dian_resolution_date_from"/>
-                <field name="dian_resolution_date_to"/>
-                <field name="dian_resolution_range_from"/>
-                <field name="dian_resolution_range_to"/>
-                <field name="dian_tech_provider_name"/>
-                <field name="dian_tech_provider_vat"/>
-                <field name="dian_software_name"/>
             </field>
         </field>
     </record>

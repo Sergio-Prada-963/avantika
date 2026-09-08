@@ -9,10 +9,6 @@
             <xpath expr="//field[@name='invoice_incoterm_id']" position="after">
                 <field name="delivery_date"
                     invisible="move_type not in ('out_invoice', 'out_refund')"/>
-                <field name="cufe"
-                    invisible="move_type not in ('out_invoice', 'out_refund')"/>
-                <field name="qr_code" widget="image"
-                    invisible="move_type not in ('out_invoice', 'out_refund')"/>
                 <field name="dian_validation_date"
                     invisible="move_type not in ('out_invoice', 'out_refund')"/>
             </xpath>

@@ -22,6 +22,7 @@ partida a terminar de diseñar.
     'license': 'LGPL-3',
     'depends': [
         'account',
+        'l10n_co_dian',
     ],
     'data': [
         'views/account_move_views.xml',

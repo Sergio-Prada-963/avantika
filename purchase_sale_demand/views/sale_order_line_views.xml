@@ -38,7 +38,9 @@
                 <field name="product_id"/>
                 <field name="purchase_proveedor_id" string="Proveedor"/>
                 <filter name="filter_pending_purchase" string="Pendientes por Comprar"
-                        domain="[('order_id.state', '=', 'sale'), ('qty_to_purchase', '&gt;', 0)]"/>
+                        domain="[('order_id.state', '=', 'sale'), ('qty_to_purchase', '&gt;', 0),
+                                 ('order_id.already_purchased', '=', False),
+                                 '!', ('move_ids.picking_id.state', '=', 'cancel')]"/>
             </search>
         </field>
     </record>

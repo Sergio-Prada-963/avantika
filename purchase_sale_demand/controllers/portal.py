@@ -18,6 +18,6 @@ class PurchaseApprovalPortal(CustomerPortal):
         if order_sudo.state == 'to approve':
             order_sudo.action_approve_by_email()
 
-        return request.render('purchase_approval_by_email.approval_result_page', {
+        return request.render('purchase_sale_demand.approval_result_page', {
             'order': order_sudo,
         })
