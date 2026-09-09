@@ -7,17 +7,35 @@
                 <div class="article o_report_layout_standard">
                     <style>
                         .o_report_layout_standard, .o_report_layout_standard * {
+                            font-family: 'Helvetica Neue', Arial, sans-serif !important;
                             font-size: 9px !important;
-                            line-height: 1.3 !important;
+                            line-height: 1.4 !important;
+                        }
+                        .o_report_layout_standard strong {
+                            font-weight: 600 !important;
+                        }
+                        .o_report_layout_standard .o_header_field {
+                            margin-bottom: 12px;
                         }
                         .o_report_layout_standard table th,
                         .o_report_layout_standard table td {
-                            padding: 2px 4px !important;
+                            padding: 4px 6px !important;
+                        }
+                        .o_report_layout_standard .o_main_table {
+                            border-collapse: collapse;
+                            margin-top: 18px;
+                        }
+                        .o_report_layout_standard .o_main_table > thead > tr > th,
+                        .o_report_layout_standard .o_main_table > tbody > tr > td {
+                            border: 1px solid #fff !important;
+                        }
+                        .o_report_layout_standard .o_main_table > thead > tr > th {
+                            border-bottom: 1px solid #000 !important;
                         }
                     </style>
                     <t t-foreach="docs" t-as="o">
                         <div class="page">
-                            <div class="row align-items-start">
+                            <div class="row align-items-center">
                                 <div class="col-4">
                                     <strong>RESPONSABLE:</strong>
                                     <span style="display:inline-block; border-bottom:1px solid #000; width:220px;">&#160;</span>
@@ -26,41 +44,51 @@
                                     <h2 style="margin:0;"><span t-field="o.name">FAL-25</span> PICKING</h2>
                                 </div>
                             </div>
-                            <div class="row mt-3">
+
+                            <t t-set="zona_account_ids" t-value="[int(k) for k in (o.partner_id.analytic_distribution or {}).keys()]"/>
+                            <t t-set="zona_accounts" t-value="env['account.analytic.account'].browse(zona_account_ids)"/>
+
+                            <div class="row mt-4 g-3">
                                 <div class="col-6">
-                                    <div><strong>PEDIDO No.:</strong> <span t-field="o.origin">59173</span></div>
-                                    <div><strong>CIUDAD:</strong> <span t-field="o.partner_id.city">Cartagena</span></div>
-                                    <div>
-                                        <strong>DIRECCION:</strong>
+                                    <div class="o_header_field"><strong>PEDIDO No.:</strong> <span t-field="o.origin">59173</span></div>
+                                    <div class="o_header_field"><strong>CLIENTE:</strong> <span t-field="o.partner_id.name">Refinería de Cartagena S.A.S</span></div>
+                                    <div class="o_header_field">
+                                        <strong>ZONA:</strong>
+                                        <span t-esc="', '.join(zona_accounts.mapped('name'))"/>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="o_header_field"><strong>CIUDAD:</strong> <span t-field="o.partner_id.city">Cartagena</span></div>
+                                    <div class="o_header_field"><strong>VENDEDOR:</strong> <span t-field="o.sale_id.user_id.name">Eduardo José Avellaneda Jiménez</span></div>
+                                    <div class="o_header_field">
+                                        <strong>DIRECCIÓN:</strong>
                                         <span t-field="o.partner_id.street">Sector Mamonal Km 10</span>
                                         <t t-if="o.partner_id.street2">
                                             <span> - </span><span t-field="o.partner_id.street2"/>
                                         </t>
                                     </div>
                                 </div>
-                                <div class="col-6">
-                                    <div><strong>CLIENTE:</strong> <span t-field="o.partner_id.name">Refinería de Cartagena S.A.S</span></div>
-                                    <div><strong>VENDEDOR:</strong> <span t-field="o.sale_id.user_id.name">Eduardo José Avellaneda Jiménez</span></div>
-                                </div>
                             </div>
                             <div class="oe_structure"></div>
 
                             <t t-set="format_number" t-value="lambda x: int(x) if x == int(x) else x"/>
+                            <t t-set="Quant" t-value="env['stock.quant']"/>
 
-                            <table class="table table-bordered o_main_table" t-if="o.move_line_ids" style="table-layout: fixed; width: 100%">
+                            <table class="table o_main_table" t-if="o.move_line_ids" style="table-layout: fixed; width: 100%">
                                 <thead>
                                     <tr>
                                         <th class="text-center" style="width:3%;"><strong>#</strong></th>
-                                        <th class="text-start" style="width:8%;"><strong>CODIGO</strong></th>
+                                        <th class="text-start" style="width:7%;"><strong>CODIGO</strong></th>
                                         <th class="text-start"><strong>DESCRIPCION</strong></th>
-                                        <th class="text-center" style="width:8%;"><strong>FECHA ENTREGA</strong></th>
-                                        <th class="text-end" style="width:5%;"><strong>CANT.</strong></th>
-                                        <th class="text-center" style="width:5%;"><strong>UND.</strong></th>
-                                        <th class="text-start" style="width:9%;" groups="stock.group_stock_multi_locations"><strong>UBICACION</strong></th>
-                                        <th class="text-start" style="width:8%;" groups="stock.group_production_lot"><strong>LOTE</strong></th>
-                                        <th class="text-center" style="width:8%;" groups="stock.group_production_lot"><strong>FECHA VCTO.</strong></th>
+                                        <th class="text-center" style="width:7%;"><strong>FECHA ENTREGA</strong></th>
+                                        <th class="text-end" style="width:6%;"><strong>STOCK UNIDADES</strong></th>
+                                        <th class="text-center" style="width:4%;"><strong>UND.</strong></th>
+                                        <th class="text-start" style="width:8%;" groups="stock.group_stock_multi_locations"><strong>UBICACION</strong></th>
+                                        <th class="text-start" style="width:8%;" groups="stock.group_production_lot"><strong>SERIAL/LOTE</strong></th>
+                                        <th class="text-center" style="width:7%;" groups="stock.group_production_lot"><strong>FECHA VCTO.</strong></th>
                                         <th class="text-end" style="width:6%;" groups="stock.group_production_lot"><strong>STOCK/LOTE</strong></th>
-                                        <th class="text-start" style="width:8%;" groups="stock.group_production_lot"><strong>SERIAL</strong></th>
+                                        <th class="text-start" style="width:8%;"><strong>STOCK COMPROMETIDO</strong></th>
+                                        <th class="text-end" style="width:6%;"><strong>UNIDADES RESERVADAS</strong></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -70,26 +98,31 @@
                                         <tr>
                                             <td class="text-center"><span t-out="row_number">1</span></td>
                                             <td class="text-start"><span t-field="line.product_id.default_code">1442-090</span></td>
-                                            <td class="text-start"><span t-field="line.product_id.display_name">Producto Demo</span></td>
+                                            <td class="text-start"><span t-field="line.product_id.name">Producto Demo</span></td>
                                             <td class="text-center">
                                                 <span t-if="line.move_id.date_deadline" t-field="line.move_id.date_deadline" t-options="{'widget': 'date'}">07-13-2026</span>
                                             </td>
-                                            <td class="text-end"><span t-out="format_number(line.quantity)">3.00</span></td>
+                                            <td class="text-end">
+                                                <span t-out="format_number(Quant._get_available_quantity(line.product_id, line.location_id))">3.00</span>
+                                            </td>
                                             <td class="text-center"><span t-field="line.product_uom_id" groups="uom.group_uom">UND</span></td>
                                             <td class="text-start" groups="stock.group_stock_multi_locations">
                                                 <span t-field="line.location_id.display_name">WH/Stock</span>
                                             </td>
                                             <td class="text-start" groups="stock.group_production_lot">
-                                                <span t-if="line.product_id.tracking == 'lot'" t-field="line.lot_id.name">26101</span>
+                                                <span t-if="line.lot_id" t-field="line.lot_id.name">26101</span>
                                             </td>
                                             <td class="text-center" groups="stock.group_production_lot">
                                                 <span t-if="line.lot_id.expiration_date" t-field="line.lot_id.expiration_date" t-options="{'widget': 'date'}">31/03/2028</span>
                                             </td>
                                             <td class="text-end" groups="stock.group_production_lot">
-                                                <span t-if="line.lot_id" t-out="format_number(line.lot_id.product_qty)">2</span>
+                                                <span t-if="line.lot_id" t-out="format_number(Quant._get_available_quantity(line.product_id, line.location_id, lot_id=line.lot_id))">2</span>
                                             </td>
-                                            <td class="text-start" groups="stock.group_production_lot">
-                                                <span t-if="line.product_id.tracking == 'serial'" t-field="line.lot_id.name"/>
+                                            <td class="text-start">
+                                                <span t-esc="', '.join(line.move_id.reference_ids.mapped('name'))"/>
+                                            </td>
+                                            <td class="text-end">
+                                                <span t-out="format_number(line.quantity_product_uom)">3.00</span>
                                             </td>
                                         </tr>
                                     </t>

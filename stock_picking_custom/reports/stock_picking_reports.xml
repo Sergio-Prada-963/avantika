@@ -27,12 +27,29 @@
             <field name="binding_type">report</field>
         </record>
 
-        <!-- El reporte estándar "Delivery Slip" queda instalado (por si algo
-             más lo referencia) pero se le quita el binding para que ya no
-             aparezca en el menú genérico de impresión de la transferencia;
-             el botón "Print" del formulario se redirige más abajo. -->
-        <record id="stock.action_report_delivery" model="ir.actions.report">
-            <field name="binding_model_id" eval="False"/>
+        <record id="paperformat_shipping_label" model="report.paperformat">
+            <field name="name">Rótulo de Envío (Horizontal)</field>
+            <field name="format">A4</field>
+            <field name="orientation">Landscape</field>
+            <field name="margin_top">10</field>
+            <field name="margin_bottom">10</field>
+            <field name="margin_left">10</field>
+            <field name="margin_right">10</field>
+            <field name="header_line" eval="False"/>
+            <field name="header_spacing">0</field>
+            <field name="dpi">90</field>
+        </record>
+
+        <record id="action_report_shipping_label" model="ir.actions.report">
+            <field name="name">Rótulo de Envío</field>
+            <field name="model">stock.picking</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">stock_picking_custom.report_shipping_label_document</field>
+            <field name="report_file">stock_picking_custom.report_shipping_label_document</field>
+            <field name="print_report_name">'Rotulo de Envio - %s - %s' % (object.partner_id.name or '', object.name)</field>
+            <field name="paperformat_id" ref="paperformat_shipping_label"/>
+            <field name="binding_model_id" ref="stock.model_stock_picking"/>
+            <field name="binding_type">report</field>
         </record>
 
     </data>

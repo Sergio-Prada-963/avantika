@@ -33,6 +33,7 @@ necesidad de iniciar sesión) que confirma la orden directamente.
         'sale_margin',
         'purchase',
         'price_list_sales',
+        'sale_order_custom',
         'portal',
         'mail',
         'mrp',

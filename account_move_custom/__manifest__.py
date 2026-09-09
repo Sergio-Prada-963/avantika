@@ -18,7 +18,7 @@ explícita tiene prioridad.
 La plantilla (`report/account_move_report_templates.xml`) es un punto de
 partida a terminar de diseñar.
 """,
-    'author': 'Porthos',
+    'author': 'Sergio Rodriguez',
     'license': 'LGPL-3',
     'depends': [
         'account',

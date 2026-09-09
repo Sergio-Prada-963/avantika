@@ -13,6 +13,7 @@
                 <field name="order_id"/>
                 <field name="order_partner_id" string="Cliente"/>
                 <field name="product_id"/>
+                <widget name="stock_quant_search_widget"/>
                 <field name="exwork"/>
                 <field name="price_unit" string="Precio de Venta"/>
                 <field name="margin" string="Margen"/>

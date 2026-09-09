@@ -11,6 +11,7 @@
                     options="{'no_create': True}"
                     domain="[('display_type', '=', False), ('is_downpayment', '=', False),
                              ('order_id.state', '=', 'sale'), ('qty_to_purchase', '&gt;', 0),
+                             ('order_id.already_purchased', '=', False),
                              '!', ('move_ids.picking_id.state', '=', 'cancel'),
                              ('product_id', '=', product_id)]"/>
             </xpath>
