@@ -15,6 +15,19 @@
             <field name="dpi">90</field>
         </record>
 
+        <record id="paperformat_delivery_custom_dims" model="report.paperformat">
+            <field name="name">Guía de Entrega (Horizontal, con tabla de dimensiones)</field>
+            <field name="format">A4</field>
+            <field name="orientation">Landscape</field>
+            <field name="margin_top">10</field>
+            <field name="margin_bottom">60</field>
+            <field name="margin_left">7</field>
+            <field name="margin_right">7</field>
+            <field name="header_line" eval="False"/>
+            <field name="header_spacing">15</field>
+            <field name="dpi">90</field>
+        </record>
+
         <record id="report_delivery_custom" model="ir.actions.report">
             <field name="name">Guía de Entrega</field>
             <field name="model">stock.picking</field>
@@ -22,7 +35,7 @@
             <field name="report_name">stock_picking_custom.report_delivery_custom_document</field>
             <field name="report_file">stock_picking_custom.report_delivery_custom_document</field>
             <field name="print_report_name">'Guia de Entrega - %s - %s' % (object.partner_id.name or '', object.name)</field>
-            <field name="paperformat_id" ref="paperformat_delivery_custom"/>
+            <field name="paperformat_id" ref="paperformat_delivery_custom_dims"/>
             <field name="binding_model_id" ref="stock.model_stock_picking"/>
             <field name="binding_type">report</field>
         </record>
@@ -49,6 +62,31 @@
             <field name="print_report_name">'Rotulo de Envio - %s - %s' % (object.partner_id.name or '', object.name)</field>
             <field name="paperformat_id" ref="paperformat_shipping_label"/>
             <field name="binding_model_id" ref="stock.model_stock_picking"/>
+            <field name="binding_type">report</field>
+        </record>
+
+        <record id="paperformat_quant_count" model="report.paperformat">
+            <field name="name">Conteo de Inventario Físico (Horizontal)</field>
+            <field name="format">A4</field>
+            <field name="orientation">Landscape</field>
+            <field name="margin_top">32</field>
+            <field name="margin_bottom">45</field>
+            <field name="margin_left">7</field>
+            <field name="margin_right">7</field>
+            <field name="header_line" eval="False"/>
+            <field name="header_spacing">15</field>
+            <field name="dpi">90</field>
+        </record>
+
+        <record id="action_report_quant_count" model="ir.actions.report">
+            <field name="name">Conteo de Unidades</field>
+            <field name="model">stock.quant</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">stock_picking_custom.report_quant_count_document</field>
+            <field name="report_file">stock_picking_custom.report_quant_count_document</field>
+            <field name="print_report_name">'Conteo de Unidades'</field>
+            <field name="paperformat_id" ref="paperformat_quant_count"/>
+            <field name="binding_model_id" ref="stock.model_stock_quant"/>
             <field name="binding_type">report</field>
         </record>
 

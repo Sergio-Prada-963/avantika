@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <template id="report_quant_count_document">
+            <t t-call="web.report_layout">
+                <t t-set="company" t-value="docs and docs[0].company_id or env.company"/>
+                <t t-set="warehouses" t-value="docs.mapped('warehouse_id')"/>
+
+                <div class="header">
+                    <style>
+                        .o_report_quant_count, .o_report_quant_count * {
+                            font-family: 'Helvetica Neue', Arial, sans-serif !important;
+                            font-size: 10px !important;
+                            line-height: 1.4 !important;
+                        }
+                        .o_report_quant_count .o_header_field {
+                            margin-bottom: 12px;
+                        }
+                        .o_report_quant_count strong {
+                            font-weight: 600 !important;
+                        }
+                    </style>
+                    <div class="o_report_quant_count row align-items-center">
+                        <div class="col-8">
+                            <div class="row">
+                                <div class="col-6 o_header_field">
+                                    <strong># de Conteo:</strong>
+                                    <span style="display:inline-block; border-bottom:1px solid #000; width:150px;">&#160;</span>
+                                </div>
+                                <div class="col-6 o_header_field">
+                                    <strong>Responsable Conteo:</strong>
+                                    <span style="display:inline-block; border-bottom:1px solid #000; width:200px;">&#160;</span>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-6 o_header_field">
+                                    <strong># de Bodega:</strong>
+                                    <span t-esc="', '.join(warehouses.mapped('name')) if warehouses else ''"/>
+                                </div>
+                                <div class="col-6 o_header_field">
+                                    <strong>Estante:</strong>
+                                    <span style="display:inline-block; border-bottom:1px solid #000; width:200px;">&#160;</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-4 text-end">
+                            <img t-if="company.logo" t-att-src="image_data_uri(company.logo)" style="max-height:50px;" alt="Logo"/>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="article">
+                    <style>
+                        .o_report_quant_count table th,
+                        .o_report_quant_count table td {
+                            padding: 4px 6px !important;
+                            font-size: 10px !important;
+                        }
+                        .o_report_quant_count .o_main_table {
+                            border-collapse: collapse;
+                            width: 100%;
+                            table-layout: fixed;
+                            margin-top: 18px;
+                        }
+                        .o_report_quant_count .o_main_table > thead > tr > th,
+                        .o_report_quant_count .o_main_table > tbody > tr > td {
+                            border: 1px solid #fff !important;
+                        }
+                        .o_report_quant_count .o_main_table > thead > tr > th {
+                            border-bottom: 1px solid #000 !important;
+                        }
+                        .o_report_quant_count .o_main_table > tbody > tr > td {
+                            border-bottom: 1px solid #ccc !important;
+                        }
+                        .o_report_quant_count .o_qty_box {
+                            border: 1px solid #000;
+                            width: 100%;
+                            height: 14px;
+                        }
+                    </style>
+                    <div class="o_report_quant_count">
+                        <table class="o_main_table">
+                            <thead>
+                                <tr>
+                                    <th class="text-center" style="width:3%;"><strong>#</strong></th>
+                                    <th class="text-start" style="width:8%;"><strong>Codigo</strong></th>
+                                    <th class="text-start" style="width:21%;"><strong>Descripcion</strong></th>
+                                    <th class="text-center" style="width:5%;"><strong>Unidad</strong></th>
+                                    <th class="text-start" style="width:8%;"><strong>Ubic.</strong></th>
+                                    <th class="text-start" style="width:8%;"><strong>Ubic.2</strong></th>
+                                    <th class="text-center" style="width:6%;"><strong>Cant.</strong></th>
+                                    <th class="text-start" style="width:10%;"><strong>Seriales</strong></th>
+                                    <th class="text-start" style="width:10%;"><strong>Lotes</strong></th>
+                                    <th class="text-center" style="width:9%;"><strong>Venc. Lote</strong></th>
+                                    <th class="text-start" style="width:12%;"><strong>Observaciones</strong></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-set="sorted_quants" t-value="docs.sorted(key=lambda q: (q.location_id.complete_name or '', q.product_id.default_code or ''))"/>
+                                <t t-set="row_number" t-value="0"/>
+                                <t t-foreach="sorted_quants" t-as="quant">
+                                    <t t-set="row_number" t-value="row_number + 1"/>
+                                    <tr>
+                                        <td class="text-center"><span t-esc="row_number"/></td>
+                                        <td class="text-start"><span t-field="quant.product_id.default_code"/></td>
+                                        <td class="text-start"><span t-field="quant.product_id.name"/></td>
+                                        <td class="text-center"><span t-field="quant.product_uom_id" groups="uom.group_uom"/></td>
+                                        <td class="text-start"><span t-esc="quant.location_id.name"/></td>
+                                        <td class="text-start"><span t-esc="quant.location_id.location_id.name or ''"/></td>
+                                        <td class="text-center"><div class="o_qty_box">&#160;</div></td>
+                                        <td class="text-start"><span t-if="quant.lot_id" t-field="quant.lot_id.name"/></td>
+                                        <td class="text-start">&#160;</td>
+                                        <td class="text-center">&#160;</td>
+                                        <td class="text-start">&#160;</td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <t t-set="printed_at" t-value="context_timestamp(datetime.datetime.now())"/>
+                <t t-set="meses_es" t-value="{1: 'ene', 2: 'feb', 3: 'mar', 4: 'abr', 5: 'may', 6: 'jun', 7: 'jul', 8: 'ago', 9: 'sep', 10: 'oct', 11: 'nov', 12: 'dic'}"/>
+                <t t-set="printed_at_str" t-value="'%02d-%s.-%d' % (printed_at.day, meses_es[printed_at.month], printed_at.year)"/>
+                <div class="footer o_report_quant_count" style="font-size: 10px;">
+                    <style>
+                        .o_report_quant_count .o_estante_table {
+                            border-collapse: collapse;
+                            margin: 0 auto 8px auto;
+                        }
+                        .o_report_quant_count .o_estante_table td {
+                            padding: 3px 6px !important;
+                            border: 1px solid #000 !important;
+                        }
+                        .o_report_quant_count .o_estante_table td:first-child {
+                            border: none !important;
+                        }
+                        .o_report_quant_count .o_estante_table tr:first-child td {
+                            border-top: none !important;
+                        }
+                        .o_report_quant_count .o_estante_table tr:last-child td {
+                            border-bottom: none !important;
+                        }
+                        .o_report_quant_count .o_estante_table td:nth-child(2) {
+                            border-left: none !important;
+                        }
+                        .o_report_quant_count .o_estante_table td:last-child {
+                            border-right: none !important;
+                        }
+                    </style>
+                    <table class="o_estante_table">
+                        <tbody>
+                            <tr>
+                                <td style="width:100px;">&#160;</td>
+                                <td colspan="5" class="text-center"><strong>Estante</strong></td>
+                            </tr>
+                            <tr>
+                                <td>&#160;</td>
+                                <td style="width:28px; height:16px;">&#160;</td>
+                                <td style="width:28px; height:16px;">&#160;</td>
+                                <td style="width:28px; height:16px;">&#160;</td>
+                                <td style="width:28px; height:16px;">&#160;</td>
+                                <td style="width:28px; height:16px;">&#160;</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left; white-space:nowrap;"><strong>Hora Inicial:</strong></td>
+                                <td style="height:16px;">&#160;</td>
+                                <td style="height:16px;">&#160;</td>
+                                <td style="height:16px;">&#160;</td>
+                                <td style="height:16px;">&#160;</td>
+                                <td style="height:16px;">&#160;</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left; white-space:nowrap;"><strong>Hora Final:</strong></td>
+                                <td style="height:16px;">&#160;</td>
+                                <td style="height:16px;">&#160;</td>
+                                <td style="height:16px;">&#160;</td>
+                                <td style="height:16px;">&#160;</td>
+                                <td style="height:16px;">&#160;</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="row">
+                        <div class="col-4">
+                            <strong>Digitador:</strong>
+                            <span style="display:inline-block; border-bottom:1px solid #000; width:180px;">&#160;</span>
+                        </div>
+                        <div class="col-4 text-center">
+                            Page <span class="page"/> of <span class="topage"/>
+                        </div>
+                        <div class="col-4 text-end">
+                            <span t-esc="printed_at_str"/>
+                        </div>
+                    </div>
+                </div>
+            </t>
+        </template>
+
+    </data>
+</odoo>

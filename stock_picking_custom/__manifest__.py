@@ -24,6 +24,7 @@ como en el menú genérico de impresión.
     'data': [
         'reports/stock_picking_report_templates.xml',
         'reports/stock_shipping_label_report_templates.xml',
+        'reports/stock_quant_count_report_templates.xml',
         'reports/stock_picking_reports.xml',
         'views/stock_picking_views.xml',
     ],

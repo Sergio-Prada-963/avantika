@@ -168,6 +168,32 @@ class SaleOrderLine(models.Model):
         string="Puede Editar Precio Unitario",
         compute='_compute_can_edit_price_unit',
     )
+    location_id = fields.Many2one(
+        'stock.location',
+        string="Ubicación",
+        domain="[('usage', '=', 'internal')]",
+        help="Ubicación de existencias desde la cual se tomará el producto "
+             "de esta línea. Al seleccionar el producto se sugiere "
+             "automáticamente una ubicación (dentro del almacén de la "
+             "orden) que tenga existencias de ese producto.",
+    )
+
+    @api.onchange('product_id')
+    def _onchange_product_id_location(self):
+        for line in self:
+            if not line.product_id:
+                continue
+            domain = [
+                ('product_id', '=', line.product_id.id),
+                ('location_id.usage', '=', 'internal'),
+                ('quantity', '>', 0),
+                ('company_id', '=', line.company_id.id),
+            ]
+            warehouse = line.order_id.warehouse_id
+            if warehouse:
+                domain.append(('location_id', 'child_of', warehouse.view_location_id.id))
+            quant = self.env['stock.quant'].search(domain, order='quantity desc', limit=1)
+            line.location_id = quant.location_id
 
     @api.depends_context('uid')
     def _compute_can_edit_price_unit(self):

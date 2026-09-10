@@ -46,10 +46,12 @@
             <xpath expr="//field[@name='order_line']//list" position="inside">
                 <field name="aiu_line_type" column_invisible="1"/>
                 <field name="due_date" optional="show"/>
+                <field name="location_id" optional="hide"/>
             </xpath>
 
             <xpath expr="//field[@name='order_line']//form" position="inside">
                 <field name="due_date"/>
+                <field name="location_id"/>
             </xpath>
 
             <xpath expr="//button[@id='action_confirm']" position="attributes">
@@ -86,6 +88,7 @@
                 <attribute name="decoration-success">margin_approval_status == 'approved'</attribute>
                 <attribute name="decoration-danger">margin_approval_status == 'rejected'</attribute>
                 <attribute name="class">o_sale_order_line_margin_list</attribute>
+                <attribute name="limit">30</attribute>
             </xpath>
             <xpath expr="//field[@name='order_line']//list" position="inside">
                 <field name="can_approve_sale_margin" column_invisible="1"/>

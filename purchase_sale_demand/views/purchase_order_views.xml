@@ -15,6 +15,19 @@
                              '!', ('move_ids.picking_id.state', '=', 'cancel'),
                              ('product_id', '=', product_id)]"/>
             </xpath>
+
+            <xpath expr="//header" position="inside">
+                <button string="Cambiar Producto"
+                    name="%(action_purchase_order_change_product_wizard)d"
+                    type="action"
+                    context="{'default_order_id': id}"
+                    invisible="state not in ['sent', 'to approve', 'purchase']"/>
+                <button string="Cambiar Bodega"
+                    name="%(action_purchase_order_change_warehouse_wizard)d"
+                    type="action"
+                    context="{'default_order_id': id}"
+                    invisible="state not in ['draft', 'sent', 'to approve', 'purchase']"/>
+            </xpath>
         </field>
     </record>
 

@@ -9,12 +9,14 @@
             title="Ver existencias por ubicación"
         />
         <a href="#"
+            t-if="!props.hideExtraIcons"
             t-on-click="openSupplierInfo"
             t-att-class="!hasProduct ? 'invisible' : ''"
             class="fa fa-money cursor-pointer ms-1"
             title="Ver proveedores del producto"
         />
         <a href="#"
+            t-if="!props.hideExtraIcons"
             t-on-click="openBom"
             t-att-class="!isKit ? 'invisible' : ''"
             class="fa fa-flask cursor-pointer ms-1"

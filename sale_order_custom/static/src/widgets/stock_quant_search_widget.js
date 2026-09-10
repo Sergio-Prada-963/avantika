@@ -6,7 +6,7 @@ import { _t } from "@web/core/l10n/translation";
 
 export class StockQuantSearchWidget extends Component {
     static template = "sale_order_custom.StockQuantSearchWidget";
-    static props = { ...standardWidgetProps };
+    static props = { ...standardWidgetProps, hideExtraIcons: { type: Boolean, optional: true } };
 
     setup() {
         this.actionService = useService("action");
@@ -88,6 +88,9 @@ export const stockQuantSearchWidget = {
         { name: "display_qty_widget", type: "boolean" },
         { name: "product_is_kit", type: "boolean" },
     ],
+    extractProps: ({ options }) => ({
+        hideExtraIcons: Boolean(options.hide_extra_icons),
+    }),
 };
 
 registry.category("view_widgets").add("stock_quant_search_widget", stockQuantSearchWidget);

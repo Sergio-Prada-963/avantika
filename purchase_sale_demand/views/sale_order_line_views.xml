@@ -5,26 +5,32 @@
         <field name="name">sale.order.line.purchase.demand.list</field>
         <field name="model">sale.order.line</field>
         <field name="arch" type="xml">
-            <list string="Líneas de Venta por Comprar" create="false" edit="false" delete="false">
+            <list string="Líneas de Venta por Comprar" editable="bottom" create="false" delete="false">
                 <header>
                     <button name="action_create_purchase_orders" type="object"
                             string="Crear Orden(es) de Compra" class="btn-primary"/>
                 </header>
-                <field name="order_id"/>
-                <field name="order_partner_id" string="Cliente"/>
-                <field name="product_id"/>
-                <widget name="stock_quant_search_widget"/>
-                <field name="exwork"/>
-                <field name="price_unit" string="Precio de Venta"/>
-                <field name="margin" string="Margen"/>
-                <field name="product_uom_qty" string="Cantidad Pedida"/>
-                <field name="product_qty_available" string="Cantidad Disponible en Inventario"/>
-                <field name="qty_reserved_delivery" string="Cantidad Reservada para el Pedido"/>
-                <field name="qty_to_purchase" string="Cantidad a Comprar"/>
-                <field name="purchase_proveedor_id" string="Proveedor"/>
-                <field name="purchase_currency_id" string="Moneda Proveedor"/>
-                <field name="product_uom_id" string="UdM"/>
-                <field name="qty_purchased" string="Cantidad Comprada"/>
+                <field name="order_id" readonly="1"/>
+                <field name="order_partner_id" string="Cliente" readonly="1"/>
+                <field name="product_id" readonly="1"/>
+                <widget name="stock_quant_search_widget" options="{'hide_extra_icons': True}"/>
+                <field name="exwork" readonly="1"/>
+                <field name="price_unit" string="Precio de Venta" readonly="1"/>
+                <field name="margin_percent" string="Margen" widget="percentage" readonly="1"/>
+                <field name="product_uom_qty" string="Cantidad Pedida" readonly="1"/>
+                <field name="location_id" string="Ubicación"/>
+                <field name="product_qty_available" string="Cantidad Disponible en Inventario" readonly="1"/>
+                <widget name="qty_at_date_widget"/>
+                <field name="qty_to_purchase" string="Cantidad a Comprar" readonly="1"/>
+                <field name="purchase_proveedor_id" string="Proveedor" readonly="1"/>
+                <field name="purchase_currency_id" string="Moneda Proveedor" readonly="1"/>
+                <field name="product_uom_id" string="UdM" readonly="1"/>
+                <field name="qty_purchased" string="Cantidad Comprada" readonly="1"/>
+                <field name="last_purchase_order_state" string="Estado Última Compra" widget="badge" readonly="1"
+                    decoration-success="last_purchase_order_state == 'purchase'"
+                    decoration-warning="last_purchase_order_state == 'to approve'"
+                    decoration-info="last_purchase_order_state in ('draft', 'sent')"
+                    decoration-danger="last_purchase_order_state == 'cancel'"/>
             </list>
         </field>
     </record>

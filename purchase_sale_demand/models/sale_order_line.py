@@ -25,7 +25,7 @@ class SaleOrderLine(models.Model):
     )
     product_qty_available = fields.Float(
         string="Cantidad Disponible en Inventario",
-        related='product_id.qty_available',
+        compute='_compute_product_qty_available',
     )
     qty_reserved_delivery = fields.Float(
         string="Cantidad Reservada para el Pedido",
@@ -45,6 +45,19 @@ class SaleOrderLine(models.Model):
         store=True,
         digits='Product Unit',
     )
+    last_purchase_order_state = fields.Selection(
+        selection=lambda self: self.env['purchase.order']._fields['state'].selection,
+        string="Estado Última Compra",
+        compute='_compute_last_purchase_order_state',
+    )
+
+    @api.depends('purchase_line_ids.order_id.state', 'purchase_line_ids.order_id.create_date')
+    def _compute_last_purchase_order_state(self):
+        for line in self:
+            last_order = line.purchase_line_ids.mapped('order_id').sorted(
+                key=lambda o: o.create_date, reverse=True
+            )[:1]
+            line.last_purchase_order_state = last_order.state if last_order else False
 
     @api.depends('purchase_proveedor_id', 'product_id.seller_ids.partner_id', 'product_id.seller_ids.currency_id')
     def _compute_purchase_currency_id(self):
@@ -53,6 +66,18 @@ class SaleOrderLine(models.Model):
                 lambda s: s.partner_id == line.purchase_proveedor_id
             )[:1]
             line.purchase_currency_id = seller.currency_id
+
+    @api.depends('product_id.qty_available', 'location_id')
+    def _compute_product_qty_available(self):
+        for line in self:
+            if not line.product_id:
+                line.product_qty_available = 0.0
+            elif line.location_id:
+                line.product_qty_available = self.env['stock.quant']._get_available_quantity(
+                    line.product_id, line.location_id
+                )
+            else:
+                line.product_qty_available = line.product_id.qty_available
 
     @api.depends(
         'move_ids.state',

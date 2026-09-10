@@ -20,6 +20,11 @@
                         string="Enviar Aprobación"
                         invisible="state != 'draft'"
                         class="oe_highlight" data-hotkey="v"/>
+                <field name="can_approve_purchase" invisible="1"/>
+                <button name="action_approve_from_button" type="object"
+                        string="Aprobar"
+                        invisible="state != 'to approve' or not can_approve_purchase"
+                        class="oe_highlight" data-hotkey="w"/>
             </xpath>
         </field>
     </record>

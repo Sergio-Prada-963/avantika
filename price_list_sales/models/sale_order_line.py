@@ -1,5 +1,13 @@
 from odoo import api, fields, models
 
+# Rentabilidad aplicada cuando una línea no encuentra ninguna línea de lista
+# de precios de venta (ningún proveedor del producto tiene ítem en la lista
+# de precios del pedido): se toma igualmente el primer proveedor de la lista
+# de precios de COMPRA del producto (por orden de secuencia) y se calcula el
+# exwork normalmente, pero con esta rentabilidad objetivo en vez de la del
+# ítem de lista de precios (que no existe en este caso).
+FALLBACK_RENTABILIDAD = 55
+
 
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
@@ -144,10 +152,23 @@ class SaleOrderLine(models.Model):
                     lambda s: s.partner_id == proveedor
                 )[:1]
 
+            if seller:
+                rentabilidad = pricelist_line.rentabilidad or 0.0
+            elif line.product_id and line.product_id.seller_ids:
+                # No se encontró línea de lista de precios de venta (ningún
+                # proveedor del producto tiene ítem en la lista de precios
+                # del pedido): se toma el primer proveedor de la lista de
+                # precios de compra del producto y se usa la rentabilidad
+                # de respaldo.
+                seller = line.product_id.seller_ids[:1]
+                rentabilidad = FALLBACK_RENTABILIDAD
+            else:
+                rentabilidad = 0.0
+
             raw_price = seller.price if seller else 0.0
             line.exwork, line.trm = line._apply_seller_conversion(raw_price, seller)
             line.factor_importacion = seller.factor_importacion or 0.0
-            line.factor_rentabilidad = pricelist_line.rentabilidad or 0.0
+            line.factor_rentabilidad = rentabilidad
 
     @api.depends('exwork')
     def _compute_purchase_price(self):
@@ -267,14 +288,28 @@ class SaleOrderLine(models.Model):
                 line.technical_price_unit = kit_price
                 continue
 
+            if not line.product_id:
+                continue
+
             pricelist_line = line.pricelist_line_id
-            if (
-                not pricelist_line
-                or pricelist_line.base != "proveedor"
-                or not pricelist_line.proveedor_id
-                or line.seller_mismatch
-                or line.factor_rentabilidad >= 100
-            ):
+            has_pricelist_seller = bool(
+                pricelist_line
+                and pricelist_line.base == "proveedor"
+                and pricelist_line.proveedor_id
+                and not line.seller_mismatch
+            )
+            # Si no hay línea de lista de precios (ningún proveedor del
+            # producto tiene ítem en la lista de precios del pedido), se usa
+            # igual el primer proveedor de la lista de precios de compra del
+            # producto (ya resuelto en `_compute_pricing_reference_fields`,
+            # que llenó exwork/factor_importacion/factor_rentabilidad con la
+            # rentabilidad de respaldo) siempre que el producto tenga algún
+            # proveedor configurado.
+            has_fallback_seller = bool(not pricelist_line and line.product_id.seller_ids)
+
+            if not has_pricelist_seller and not has_fallback_seller:
+                continue
+            if line.factor_rentabilidad >= 100:
                 continue
 
             price = line.exwork * (line.factor_importacion or 1) / (

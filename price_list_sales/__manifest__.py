@@ -13,8 +13,8 @@ Módulo base para el cálculo de listas de precios de venta.
     'license': 'LGPL-3',
     'depends': [
         'sale',
-        'account',
         'sale_margin',
+        'account',
         'product',
         'contacts',
         'account_manual_currency_rate',

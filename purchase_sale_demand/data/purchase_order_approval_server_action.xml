@@ -283,7 +283,7 @@ action = {
         'default_subject': subject,
         'default_body': html,
         'default_email_to': EMAIL_APROBADOR,
-        'default_partner_ids': [],
+        'default_partner_ids': [aprobador.partner_id.id],
         'default_use_template': False,
         # Le indica a mail_compose_message.py que, al enviar este correo,
         # debe pasar la orden a estado "to approve".

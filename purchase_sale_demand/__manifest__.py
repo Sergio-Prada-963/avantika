@@ -32,6 +32,7 @@ necesidad de iniciar sesión) que confirma la orden directamente.
         'sale_stock',
         'sale_margin',
         'purchase',
+        'purchase_stock',
         'price_list_sales',
         'sale_order_custom',
         'portal',
@@ -41,6 +42,8 @@ necesidad de iniciar sesión) que confirma la orden directamente.
     'data': [
         'security/ir.model.access.csv',
         'data/purchase_order_approval_server_action.xml',
+        'wizard/purchase_order_change_product_wizard_views.xml',
+        'wizard/purchase_order_change_warehouse_wizard_views.xml',
         'views/sale_order_views.xml',
         'views/sale_order_line_views.xml',
         'views/purchase_order_views.xml',

@@ -3,7 +3,6 @@ from markupsafe import Markup
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
-from odoo.tools import html_escape
 
 
 class SaleOrderChangeProductWizard(models.TransientModel):
@@ -35,42 +34,55 @@ class SaleOrderChangeProductWizard(models.TransientModel):
 
     def _get_linked_purchase_lines(self, sale_line):
         """Encuentra las líneas de orden de compra generadas para abastecer
-        esta línea de venta (ruta Comprar + Bajo Pedido). No existe una
-        relación directa en este negocio entre sale.order.line y
-        purchase.order.line, así que se llega por dos vías:
+        esta línea de venta. No existe una relación directa garantizada en
+        este negocio entre sale.order.line y purchase.order.line, así que se
+        llega por varias vías (no todas aplican según qué módulos de compra
+        estén instalados):
+        - purchase.order.line.sale_line_id: vínculo directo que usa el
+          módulo de "Compra por Demanda" (purchase_sale_demand), sin pasar
+          por movimientos de stock (esta empresa no maneja inventario).
         - purchase.order.line.move_dest_ids: se llena desde que se crea la
-          línea de compra (incluso si la orden de compra sigue en borrador
-          y todavía no existe el movimiento de recepción).
+          línea de compra por la ruta Comprar + Bajo Pedido (incluso si la
+          orden de compra sigue en borrador y todavía no existe el
+          movimiento de recepción).
         - la cadena move_orig_ids de los movimientos de entrega: respaldo
           para cuando move_dest_ids no quedó poblado por algún motivo."""
-        moves = sale_line.move_ids
-        if not moves:
-            return self.env['purchase.order.line']
-
         PurchaseLine = self.env['purchase.order.line']
         purchase_lines = self.env['purchase.order.line']
-        if 'move_dest_ids' in PurchaseLine._fields:
-            purchase_lines |= PurchaseLine.search([('move_dest_ids', 'in', moves.ids)])
 
-        if 'purchase_line_id' in moves._fields:
-            seen = self.env['stock.move']
-            to_visit = moves
-            while to_visit:
-                seen |= to_visit
-                to_visit = to_visit.move_orig_ids - seen
-            purchase_lines |= seen.mapped('purchase_line_id')
+        if 'sale_line_id' in PurchaseLine._fields:
+            purchase_lines |= PurchaseLine.search([('sale_line_id', '=', sale_line.id)])
+
+        moves = sale_line.move_ids
+        if moves:
+            if 'move_dest_ids' in PurchaseLine._fields:
+                purchase_lines |= PurchaseLine.search([('move_dest_ids', 'in', moves.ids)])
+
+            if 'purchase_line_id' in moves._fields:
+                seen = self.env['stock.move']
+                to_visit = moves
+                while to_visit:
+                    seen |= to_visit
+                    to_visit = to_visit.move_orig_ids - seen
+                purchase_lines |= seen.mapped('purchase_line_id')
 
         return purchase_lines
 
     def _get_product_change_message(self, old_product, new_product, doc_label):
-        return Markup(_(
-            "Se cambió el producto de <b>%(old)s</b> a <b>%(new)s</b> en %(doc)s, "
-            "por un cambio de producto realizado desde la orden de venta %(sale_order)s.",
-            old=html_escape(old_product.display_name),
-            new=html_escape(new_product.display_name),
-            doc=doc_label,
-            sale_order=html_escape(self.order_id.display_name),
-        ))
+        template = _(
+            "Se cambió el producto de %(old)s a %(new)s en %(doc)s, por un "
+            "cambio de producto realizado desde la orden de venta %(sale_order)s."
+        )
+        return Markup(template) % {
+            'old': Markup(
+                '<span style="color:#dc3545;text-decoration:line-through;">%s</span>'
+            ) % old_product.display_name,
+            'new': Markup(
+                '<span style="color:#28a745;font-weight:bold;">%s</span>'
+            ) % new_product.display_name,
+            'doc': doc_label,
+            'sale_order': self.order_id.display_name,
+        }
 
     def _change_purchase_lines(self, purchase_lines, old_product, new_product):
         updatable = purchase_lines.filtered(
@@ -155,34 +167,40 @@ class SaleOrderChangeProductWizard(models.TransientModel):
         updated_purchase, skipped_purchase = self._change_purchase_lines(purchase_lines, old_product, new_product)
         updated_moves, skipped_moves = self._change_delivery_moves(moves, old_product, new_product)
 
-        message = _(
-            "Producto cambiado de %(old)s a %(new)s en la línea de venta (precio %(price_action)s).",
-            old=html_escape(old_product.display_name),
-            new=html_escape(new_product.display_name),
-            price_action=_("conservado") if self.keep_price else _("recalculado"),
-        )
+        old_html = Markup(
+            '<span style="color:#dc3545;text-decoration:line-through;">%s</span>'
+        ) % old_product.display_name
+        new_html = Markup(
+            '<span style="color:#28a745;font-weight:bold;">%s</span>'
+        ) % new_product.display_name
+        price_action = _("conservado") if self.keep_price else _("recalculado")
+
+        message = Markup(_(
+            "Producto cambiado de %(old)s a %(new)s en la línea de venta "
+            "(precio %(price_action)s)."
+        )) % {
+            'old': old_html,
+            'new': new_html,
+            'price_action': price_action,
+        }
         if updated_purchase:
-            message += "<br/>" + _(
-                "Se actualizó el producto en %(count)s línea(s) de compra relacionada(s).",
-                count=len(updated_purchase),
-            )
+            message += Markup('<br/>') + Markup(_(
+                "Se actualizó el producto en %(count)s línea(s) de compra relacionada(s)."
+            )) % {'count': len(updated_purchase)}
         if skipped_purchase:
-            message += "<br/>" + _(
+            message += Markup('<br/>') + Markup(_(
                 "No se pudo actualizar %(count)s línea(s) de compra relacionada(s) "
-                "(ya tienen cantidad recibida o facturada, o están canceladas).",
-                count=len(skipped_purchase),
-            )
+                "(ya tienen cantidad recibida o facturada, o están canceladas)."
+            )) % {'count': len(skipped_purchase)}
         if updated_moves:
-            message += "<br/>" + _(
-                "Se actualizó el producto en %(count)s movimiento(s) de entrega relacionado(s).",
-                count=len(updated_moves),
-            )
+            message += Markup('<br/>') + Markup(_(
+                "Se actualizó el producto en %(count)s movimiento(s) de entrega relacionado(s)."
+            )) % {'count': len(updated_moves)}
         if skipped_moves:
-            message += "<br/>" + _(
+            message += Markup('<br/>') + Markup(_(
                 "No se pudo actualizar %(count)s movimiento(s) de entrega relacionado(s) "
-                "(ya están hechos o cancelados).",
-                count=len(skipped_moves),
-            )
-        self.order_id.message_post(body=Markup(message))
+                "(ya están hechos o cancelados)."
+            )) % {'count': len(skipped_moves)}
+        self.order_id.message_post(body=message)
 
         return {'type': 'ir.actions.act_window_close'}
