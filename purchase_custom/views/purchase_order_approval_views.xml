@@ -16,14 +16,19 @@
                 <attribute name="invisible">1</attribute>
             </xpath>
             <xpath expr="//button[@id='draft_confirm']" position="after">
+                <field name="show_confirm_button_no_approval" invisible="1"/>
+                <button name="action_confirm_no_approval" type="object"
+                        string="Confirmar"
+                        invisible="state not in ['draft', 'to approve'] or not show_confirm_button_no_approval"
+                        class="oe_highlight" data-hotkey="q"/>
                 <button name="action_send_for_approval" type="object"
                         string="Enviar Aprobación"
-                        invisible="state != 'draft'"
+                        invisible="state != 'draft' or show_confirm_button_no_approval"
                         class="oe_highlight" data-hotkey="v"/>
                 <field name="can_approve_purchase" invisible="1"/>
                 <button name="action_approve_from_button" type="object"
                         string="Aprobar"
-                        invisible="state != 'to approve' or not can_approve_purchase"
+                        invisible="state != 'to approve' or not can_approve_purchase or show_confirm_button_no_approval"
                         class="oe_highlight" data-hotkey="w"/>
             </xpath>
         </field>

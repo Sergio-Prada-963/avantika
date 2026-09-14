@@ -6,6 +6,10 @@
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
+            <xpath expr="//form" position="attributes">
+                <attribute name="create">0</attribute>
+            </xpath>
+
             <xpath expr="//field[@name='order_line']//list//widget[@name='qty_at_date_widget']" position="after">
                 <widget name="stock_quant_search_widget"/>
             </xpath>
@@ -116,6 +120,28 @@
                 <button name="action_reset_margin_approval" type="object" icon="fa-refresh"
                     title="Reiniciar decisión de margen" class="text-info"
                     invisible="display_type or not can_approve_sale_margin or state != 'draft' or margin_approval_status == 'pending'"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="sale_order_tree_no_create" model="ir.ui.view">
+        <field name="name">sale.order.list.no.create</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.sale_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="attributes">
+                <attribute name="create">0</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_sale_order_kanban_no_create" model="ir.ui.view">
+        <field name="name">sale.order.kanban.no.create</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sale_order_kanban"/>
+        <field name="arch" type="xml">
+            <xpath expr="//kanban" position="attributes">
+                <attribute name="create">0</attribute>
             </xpath>
         </field>
     </record>

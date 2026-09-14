@@ -15,8 +15,12 @@ class SaleOrderLine(models.Model):
     purchase_proveedor_id = fields.Many2one(
         'res.partner',
         string="Proveedor de Compra",
-        related='pricelist_line_id.proveedor_id',
+        related='supplierinfo_id.partner_id',
         store=True,
+        help="Proveedor del ítem de la lista de precios de venta; si la "
+             "línea no encontró ninguno, se usa el primer proveedor de la "
+             "lista de precios de compra del producto (campo "
+             "supplierinfo_id de price_list_sales).",
     )
     purchase_currency_id = fields.Many2one(
         'res.currency',
@@ -49,6 +53,7 @@ class SaleOrderLine(models.Model):
         selection=lambda self: self.env['purchase.order']._fields['state'].selection,
         string="Estado Última Compra",
         compute='_compute_last_purchase_order_state',
+        store=True,
     )
 
     @api.depends('purchase_line_ids.order_id.state', 'purchase_line_ids.order_id.create_date')
@@ -59,13 +64,10 @@ class SaleOrderLine(models.Model):
             )[:1]
             line.last_purchase_order_state = last_order.state if last_order else False
 
-    @api.depends('purchase_proveedor_id', 'product_id.seller_ids.partner_id', 'product_id.seller_ids.currency_id')
+    @api.depends('supplierinfo_id.currency_id')
     def _compute_purchase_currency_id(self):
         for line in self:
-            seller = line.product_id.seller_ids.filtered(
-                lambda s: s.partner_id == line.purchase_proveedor_id
-            )[:1]
-            line.purchase_currency_id = seller.currency_id
+            line.purchase_currency_id = line.supplierinfo_id.currency_id
 
     @api.depends('product_id.qty_available', 'location_id')
     def _compute_product_qty_available(self):
@@ -105,10 +107,13 @@ class SaleOrderLine(models.Model):
             )
             line.qty_purchased = sum(confirmed_lines.mapped('product_qty'))
 
-    @api.depends('product_uom_qty', 'qty_reserved_delivery')
+    @api.depends('product_uom_qty', 'qty_reserved_delivery', 'product_qty_available')
     def _compute_qty_to_purchase(self):
         for line in self:
-            line.qty_to_purchase = max(line.product_uom_qty - line.qty_reserved_delivery, 0.0)
+            line.qty_to_purchase = max(
+                line.product_uom_qty - line.qty_reserved_delivery - line.product_qty_available,
+                0.0,
+            )
 
     def action_create_purchase_orders(self):
         lines = self.filtered(
@@ -123,8 +128,10 @@ class SaleOrderLine(models.Model):
         missing_provider = lines.filtered(lambda l: not l.purchase_proveedor_id)
         if missing_provider:
             raise UserError(_(
-                "Las siguientes líneas no tienen un proveedor definido en su "
-                "línea de lista de precios; no se puede generar la compra: %s"
+                "Las siguientes líneas no tienen ningún proveedor definido "
+                "(ni en la lista de precios de venta, ni en la lista de "
+                "precios de compra del producto); no se puede generar la "
+                "compra: %s"
             ) % ', '.join(missing_provider.mapped(lambda l: l.product_id.display_name or l.name)))
 
         groups = defaultdict(lambda: self.env['sale.order.line'])
@@ -133,19 +140,30 @@ class SaleOrderLine(models.Model):
 
         purchase_orders = self.env['purchase.order']
         for proveedor, group_lines in groups.items():
-            purchase_order = self.env['purchase.order'].create({
-                'partner_id': proveedor.id,
-                'order_line': [
-                    (0, 0, {
-                        'product_id': line.product_id.id,
-                        'product_qty': line.qty_to_purchase,
-                        'product_uom_id': line.product_uom_id.id,
-                        'sale_line_id': line.id,
-                    })
-                    for line in group_lines
-                ],
-            })
-            purchase_orders |= purchase_order
+            new_lines_vals = [
+                (0, 0, {
+                    'product_id': line.product_id.id,
+                    'product_qty': line.qty_to_purchase,
+                    'product_uom_id': line.product_uom_id.id,
+                    'sale_line_id': line.id,
+                })
+                for line in group_lines
+            ]
+
+            existing_purchase_order = self.env['purchase.order'].search([
+                ('partner_id', '=', proveedor.id),
+                ('state', '=', 'draft'),
+            ], limit=1)
+
+            if existing_purchase_order:
+                existing_purchase_order.write({'order_line': new_lines_vals})
+                purchase_orders |= existing_purchase_order
+            else:
+                purchase_order = self.env['purchase.order'].create({
+                    'partner_id': proveedor.id,
+                    'order_line': new_lines_vals,
+                })
+                purchase_orders |= purchase_order
 
         return {
             'type': 'ir.actions.act_window',

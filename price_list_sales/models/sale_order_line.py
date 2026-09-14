@@ -39,6 +39,12 @@ class SaleOrderLine(models.Model):
         compute="_compute_pricelist_line_id",
         store=True,
     )
+    supplierinfo_id = fields.Many2one(
+        "product.supplierinfo",
+        string="Proveedor de Referencia (ExWork)",
+        compute="_compute_pricelist_line_id",
+        store=True,
+    )
 
     def _has_manual_price(self):
         # Regla explícita del negocio: un precio distinto de 0 nunca se debe
@@ -69,12 +75,17 @@ class SaleOrderLine(models.Model):
         "order_id.partner_id.x_studio_subsector_1",
     )
     def _compute_pricelist_line_id(self):
+        # También resuelve y guarda `supplierinfo_id`: el proveedor concreto
+        # (registro de `product.supplierinfo`) que se debe usar para calcular
+        # el exwork, tanto si viene de un ítem de lista de precios de venta
+        # como si es el proveedor de respaldo (55% de rentabilidad).
         for line in self:
             if line.product_id and line._is_kit():
                 # El precio de un kit se arma sumando el de cada componente
                 # de su lista de materiales, no el de un único proveedor.
                 line.pricelist_line_id = False
                 line.seller_mismatch = False
+                line.supplierinfo_id = False
                 continue
 
             order = line.order_id
@@ -85,6 +96,7 @@ class SaleOrderLine(models.Model):
             )
 
             matched = self.env["product.pricelist.item"]
+            matched_seller = self.env["product.supplierinfo"]
             if line.product_id:
                 # Se respeta la prioridad de proveedores del producto (orden
                 # de secuencia en su lista de precios de compra): se toma el
@@ -95,10 +107,22 @@ class SaleOrderLine(models.Model):
                         lambda i: i.proveedor_id == seller.partner_id
                     )[:1]
                     if matched:
+                        matched_seller = seller
                         break
 
             line.pricelist_line_id = matched
             line.seller_mismatch = bool(candidates and line.product_id and not matched)
+
+            if matched_seller:
+                line.supplierinfo_id = matched_seller
+            elif line.product_id and line.product_id.seller_ids:
+                # Sin ítem de lista de precios de venta: se guarda igual el
+                # primer proveedor de la lista de precios de compra del
+                # producto, que es el que se usará para calcular el exwork
+                # con la rentabilidad de respaldo.
+                line.supplierinfo_id = line.product_id.seller_ids[:1]
+            else:
+                line.supplierinfo_id = False
 
     def _get_seller_conversion_rate(self, seller):
         """Tasa para convertir el precio del proveedor (en su propia moneda)
@@ -127,10 +151,10 @@ class SaleOrderLine(models.Model):
         return raw_price * trm * 1.05, trm
 
     @api.depends(
-        "pricelist_line_id", "product_id",
-        "product_id.seller_ids.price",
-        "product_id.seller_ids.factor_importacion",
-        "product_id.seller_ids.currency_id",
+        "pricelist_line_id", "supplierinfo_id", "product_id",
+        "supplierinfo_id.price",
+        "supplierinfo_id.factor_importacion",
+        "supplierinfo_id.currency_id",
         "order_id.company_id", "order_id.currency_id", "order_id.date_order",
     )
     def _compute_pricing_reference_fields(self):
@@ -144,23 +168,14 @@ class SaleOrderLine(models.Model):
                 line.factor_rentabilidad = 0.0
                 continue
 
+            # El proveedor a usar ya quedó guardado en `supplierinfo_id`
+            # (resuelto en `_compute_pricelist_line_id`), sea el del ítem de
+            # lista de precios de venta o el de respaldo.
+            seller = line.supplierinfo_id
             pricelist_line = line.pricelist_line_id
-            proveedor = pricelist_line.proveedor_id
-            seller = self.env["product.supplierinfo"]
-            if proveedor and line.product_id:
-                seller = line.product_id.seller_ids.filtered(
-                    lambda s: s.partner_id == proveedor
-                )[:1]
-
-            if seller:
+            if seller and pricelist_line.proveedor_id == seller.partner_id:
                 rentabilidad = pricelist_line.rentabilidad or 0.0
-            elif line.product_id and line.product_id.seller_ids:
-                # No se encontró línea de lista de precios de venta (ningún
-                # proveedor del producto tiene ítem en la lista de precios
-                # del pedido): se toma el primer proveedor de la lista de
-                # precios de compra del producto y se usa la rentabilidad
-                # de respaldo.
-                seller = line.product_id.seller_ids[:1]
+            elif seller:
                 rentabilidad = FALLBACK_RENTABILIDAD
             else:
                 rentabilidad = 0.0

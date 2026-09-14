@@ -29,4 +29,19 @@
         <field name="target">new</field>
     </record>
 
+    <record id="view_purchase_order_form_change_product_button" model="ir.ui.view">
+        <field name="name">purchase.order.form.change.product.button</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button string="Cambiar Producto"
+                    name="%(action_purchase_order_change_product_wizard)d"
+                    type="action"
+                    context="{'default_order_id': id}"
+                    invisible="state not in ['sent', 'to approve', 'purchase']"/>
+            </xpath>
+        </field>
+    </record>
+
 </odoo>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_users_form_purchase_no_approval" model="ir.ui.view">
+        <field name="name">res.users.form.purchase.no.approval</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='preferences']" position="inside">
+                <group string="Preferencias en Compras">
+                    <field name="show_confirm_button_purchase_no_approval" widget="boolean_toggle"/>
+                    <div colspan="2" class="text-muted mb-2">
+                        Muestra el botón "Confirmar" en las órdenes de compra en estado
+                        Borrador y Por Aprobar, para que este usuario pueda confirmarlas
+                        directamente sin pasar por el flujo de aprobación por correo.
+                    </div>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

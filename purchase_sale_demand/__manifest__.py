@@ -15,15 +15,6 @@ automáticamente una orden de compra en borrador por cada proveedor (tomado
 de la línea de lista de precios de venta), vinculando cada línea de compra
 generada con su línea de venta de origen. Al confirmar la compra, la
 cantidad comprada se refleja en la línea de venta correspondiente.
-
-También agrega un flujo de aprobación de compras por correo: el botón
-nativo de confirmar/aprobar se oculta en borrador, enviada y por aprobar,
-reemplazado por un botón "Enviar Aprobación" que arma una previsualización
-del margen de la orden (y de sus kits, si aplica) y abre el compositor de
-correo estándar de Odoo, listo para enviar al "Usuario que Aprueba Compras"
-configurado en Ajustes > Compras. Al enviar el correo, la orden pasa a
-"Por Aprobar"; el correo incluye un botón "Aprobar" (enlace de un clic, sin
-necesidad de iniciar sesión) que confirma la orden directamente.
 """,
     'author': 'Sergio Rodriguez',
     'license': 'LGPL-3',
@@ -35,21 +26,14 @@ necesidad de iniciar sesión) que confirma la orden directamente.
         'purchase_stock',
         'price_list_sales',
         'sale_order_custom',
-        'portal',
         'mail',
         'mrp',
     ],
     'data': [
         'security/ir.model.access.csv',
-        'data/purchase_order_approval_server_action.xml',
-        'wizard/purchase_order_change_product_wizard_views.xml',
-        'wizard/purchase_order_change_warehouse_wizard_views.xml',
         'views/sale_order_views.xml',
         'views/sale_order_line_views.xml',
         'views/purchase_order_views.xml',
-        'views/purchase_order_approval_views.xml',
-        'views/res_config_settings_views.xml',
-        'views/portal_templates.xml',
     ],
     'installable': True,
     'application': False,

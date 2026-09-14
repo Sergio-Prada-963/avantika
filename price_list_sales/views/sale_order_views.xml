@@ -28,7 +28,8 @@
             </xpath>
             <xpath expr="//field[@name='order_line']/list/field[@name='price_unit']" position="after">
                 <field name="pricelist_line_id" optional="hide" readonly="1"/>
-                <field name="exwork" optional="hide" groups="base.group_system"/>
+                <field name="supplierinfo_id" optional="hide" readonly="1" groups="base.group_system"/>
+                <field name="exwork" optional="show"/>
                 <field name="factor_importacion" optional="hide" groups="base.group_system"/>
                 <field name="trm" optional="hide" groups="base.group_system"/>
                 <field name="factor_rentabilidad" optional="hide" groups="base.group_system"/>

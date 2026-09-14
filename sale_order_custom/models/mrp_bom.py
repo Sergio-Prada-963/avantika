@@ -1,10 +1,25 @@
 # -*- coding: utf-8 -*-
-from odoo import _, api, models
+from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
 
 class MrpBom(models.Model):
     _inherit = 'mrp.bom'
+
+    kit_total_cost = fields.Float(
+        string="Costo Total del Kit",
+        help="Suma del costo (costo unitario x cantidad) de cada componente "
+             "del kit. Se recalcula en el formulario cada vez que se agrega, "
+             "edita o quita un componente.",
+    )
+
+    @api.onchange('bom_line_ids')
+    def _onchange_bom_line_ids_kit_total_cost(self):
+        for bom in self:
+            bom.kit_total_cost = sum(
+                line.product_id.standard_price * line.product_qty
+                for line in bom.bom_line_ids
+            )
 
     @api.model_create_multi
     def create(self, vals_list):
