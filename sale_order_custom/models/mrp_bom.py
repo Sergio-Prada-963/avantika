@@ -67,10 +67,11 @@ class MrpBom(models.Model):
             raise UserError(_("No se encontró la cotización para agregar el kit."))
         for bom in self:
             product = bom.product_tmpl_id.product_variant_id
-            self.env['sale.order.line'].create({
+            kit_line = self.env['sale.order.line'].create({
                 'order_id': order.id,
                 'product_id': product.id,
                 'product_uom_id': product.uom_id.id,
                 'product_uom_qty': 1.0,
                 'price_unit': product.lst_price,
             })
+            kit_line._create_kit_component_lines()

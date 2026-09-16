@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_demand_indicator" model="ir.ui.view">
+        <field name="name">res.config.settings.form.demand.indicator</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="purchase.res_config_settings_view_form_purchase"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='purchase_setting_container']" position="inside">
+                <setting id="demand_indicator_setting" string="Indicador de Compra por Demanda"
+                    help="Umbrales de días (fecha de la orden de venta vs. hoy) que determinan el color del indicador en el listado de Compra por Demanda">
+                    <div class="content-group">
+                        <div class="row mt8">
+                            <label for="indicador_verde" class="col-lg-4 o_light_label" string="Verde hasta (días)"/>
+                            <field name="indicador_verde"/>
+                        </div>
+                        <div class="row mt8">
+                            <label for="indicador_verde_claro" class="col-lg-4 o_light_label" string="Azul hasta (días)"/>
+                            <field name="indicador_verde_claro"/>
+                        </div>
+                        <div class="row mt8">
+                            <label for="indicador_amarillo" class="col-lg-4 o_light_label" string="Amarillo hasta (días)"/>
+                            <field name="indicador_amarillo"/>
+                        </div>
+                        <div class="row mt8">
+                            <label for="indicador_rojo" class="col-lg-4 o_light_label" string="Rojo hasta (días)"/>
+                            <field name="indicador_rojo"/>
+                        </div>
+                        <div class="row mt8">
+                            <label for="indicador_negro" class="col-lg-4 o_light_label" string="Negro desde (días)"/>
+                            <field name="indicador_negro"/>
+                        </div>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

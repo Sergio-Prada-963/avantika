@@ -1,0 +1,29 @@
+// El widget "badge" del campo demand_indicator en la lista NO puede usar un
+// decoration-* con nombre propio: el esquema RNG de Odoo para <list> solo
+// permite decoration-{bf,it,danger,info,muted,primary,success,warning}. Por
+// eso 'verde_claro' (etiqueta "Azul") usa decoration-info tanto en la lista
+// como en el dashboard de abajo (bg-info-subtle/text-info-emphasis,
+// clases nativas de Bootstrap), y 'negro' usa decoration-muted en la lista.
+
+.o_demand_dashboard {
+    .demand-dashboard-card {
+        width: 100%;
+        height: 100%;
+
+        &:hover {
+            text-decoration: underline;
+        }
+
+        &:active {
+            border: none;
+        }
+    }
+
+    // Fila "Mi": mismo color que su caja de "Todos" correspondiente, pero
+    // más chica (sin el número grande fs-2 ni la etiqueta de texto).
+    .demand-dashboard-card-mine {
+        font-size: 0.85rem;
+        padding-top: 0.15rem !important;
+        padding-bottom: 0.15rem !important;
+    }
+}

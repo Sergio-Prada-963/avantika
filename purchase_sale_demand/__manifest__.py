@@ -31,10 +31,21 @@ cantidad comprada se refleja en la línea de venta correspondiente.
     ],
     'data': [
         'security/ir.model.access.csv',
+        'data/ir_cron_demand_indicator.xml',
         'views/sale_order_views.xml',
         'views/sale_order_line_views.xml',
         'views/purchase_order_views.xml',
+        'views/res_config_settings_views.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'purchase_sale_demand/static/src/scss/demand_indicator.scss',
+            'purchase_sale_demand/static/src/views/demand_dashboard.js',
+            'purchase_sale_demand/static/src/views/demand_dashboard.xml',
+            'purchase_sale_demand/static/src/views/demand_listview.js',
+            'purchase_sale_demand/static/src/views/demand_listview.xml',
+        ],
+    },
     'installable': True,
     'application': False,
     'auto_install': False,

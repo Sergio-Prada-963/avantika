@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates>
+    <t t-name="purchase_sale_demand.DemandDashboard">
+        <div class="o_demand_dashboard container-fluid py-3 border-bottom bg-view">
+            <div class="d-flex align-items-stretch gap-2 mb-1">
+                <div class="d-flex align-items-center flex-shrink-0" style="min-width: 3rem;">
+                    Todos
+                </div>
+                <div class="grid gap-1 gap-lg-3 flex-grow-1" style="--columns: 5">
+                    <t t-foreach="indicators" t-as="ind" t-key="ind.key">
+                        <div class="g-col-12 g-col-lg-1 p-0" t-on-click="setSearchContext"
+                             t-att-title="ind.label" t-att-filter_name="ind.filterName" mine="false">
+                            <a href="#" class="btn demand-dashboard-card p-1 p-lg-2 text-truncate text-wrap text-center"
+                               t-attf-class="{{ ind.colorClass }}">
+                                <div class="fs-2">
+                                    <span t-out="getCount(ind.key, false)"/>
+                                </div>
+                                <t t-esc="ind.label"/>
+                            </a>
+                        </div>
+                    </t>
+                </div>
+            </div>
+            <div class="d-flex align-items-stretch gap-2">
+                <div class="d-flex align-items-center flex-shrink-0" style="min-width: 3rem;">
+                    Mi
+                </div>
+                <div class="grid gap-1 gap-lg-3 flex-grow-1" style="--columns: 5">
+                    <t t-foreach="indicators" t-as="ind" t-key="ind.key + '_mine'">
+                        <div class="g-col-12 g-col-lg-1 p-0" t-on-click="setSearchContext"
+                             t-att-title="ind.label + ' (Mi)'" t-att-filter_name="ind.filterName" mine="true">
+                            <a href="#" class="btn demand-dashboard-card demand-dashboard-card-mine p-1 text-truncate text-wrap text-center"
+                               t-attf-class="{{ ind.colorClass }}">
+                                <span t-out="getCount(ind.key, true)"/>
+                            </a>
+                        </div>
+                    </t>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

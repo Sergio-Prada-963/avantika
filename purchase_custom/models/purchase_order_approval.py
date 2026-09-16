@@ -89,21 +89,84 @@ class PurchaseOrder(models.Model):
             "de aprobación por correo."
         ) % self.env.user.display_name)
 
-    def action_approve_by_email(self):
+    def action_approve_by_email(self, approving_user):
         """Se ejecuta cuando el aprobador hace clic en el botón "Aprobar" del
-        correo (enlace de un clic, sin necesidad de iniciar sesión, ver
-        controllers/portal.py)."""
+        correo (enlace de un clic). `approving_user` debe ser el usuario
+        REAL de la sesión (`request.env.user` en controllers/portal.py), NO
+        `self.env.user`: el registro que llega aquí (`order_sudo`, devuelto
+        por `_document_check_access`) viene con `with_user(SUPERUSER_ID)`
+        aplicado internamente por el core, así que `self.env.user` sería
+        siempre OdooBot sin importar quién esté logueado."""
         self.ensure_one()
         if self.state != 'to approve':
             return
+        if approving_user != self.company_id.purchase_approval_user_id:
+            raise UserError(_(
+                "Solo %s puede aprobar esta orden de compra."
+            ) % (self.company_id.purchase_approval_user_id.display_name or _("el aprobador configurado")))
         self._approve_purchase(_(
             "Orden aprobada y confirmada mediante el enlace de aprobación enviado por correo."
         ))
 
+    def action_reject_by_email(self, rejecting_user):
+        """Se ejecuta cuando el aprobador hace clic en el botón "Rechazar" del
+        correo (mismo mecanismo de un clic que "Aprobar"): cancela la orden
+        vía el método nativo `button_cancel()` y notifica al comprador
+        (`user_id`) por el chatter, sin salir del correo."""
+        self.ensure_one()
+        if self.state != 'to approve':
+            return
+        if rejecting_user != self.company_id.purchase_approval_user_id:
+            raise UserError(_(
+                "Solo %s puede rechazar esta orden de compra."
+            ) % (self.company_id.purchase_approval_user_id.display_name or _("el aprobador configurado")))
+        self.sudo().with_context(purchase_reject_notified=True).button_cancel()
+        comprador = self.user_id
+        self.message_post(
+            body=_(
+                "Orden rechazada por %s mediante el enlace de rechazo enviado por correo."
+            ) % rejecting_user.display_name,
+            partner_ids=comprador.partner_id.ids if comprador else False,
+        )
+
+    def button_cancel(self):
+        # Si se cancela mientras está "Por Aprobar", es efectivamente un
+        # rechazo de la aprobación: se notifica al comprador (`user_id`) por
+        # el chatter. Cubre tanto el botón nativo "Cancelar" del formulario
+        # como cualquier otro camino que llame a este método; se salta si
+        # `action_reject_by_email` ya lo llamó (ese método publica su propio
+        # mensaje, más detallado, para no duplicar la notificación).
+        orders_to_notify = self.filtered(
+            lambda o: o.state == 'to approve'
+        ) if not self.env.context.get('purchase_reject_notified') else self.browse()
+        result = super().button_cancel()
+        for order in orders_to_notify:
+            comprador = order.user_id
+            order.message_post(
+                body=_("La aprobación de esta orden de compra fue rechazada."),
+                partner_ids=comprador.partner_id.ids if comprador else False,
+            )
+        return result
+
+    def _approval_allowed(self):
+        # El flujo de aprobación por correo/botones de este módulo es un
+        # camino alterno y deliberado al de doble validación nativo (los
+        # botones nativos están ocultos en la vista): un aprobador designado
+        # aquí puede no cumplir las reglas nativas de _approval_allowed()
+        # (grupo de compras o monto por debajo del umbral). Este contexto
+        # se activa solo desde `_approve_purchase`, después de validar la
+        # identidad correcta en cada método `action_*` de este archivo.
+        return (
+            super()._approval_allowed()
+            or bool(self.env.context.get('purchase_custom_force_approve'))
+        )
+
     def _approve_purchase(self, log_message):
         self.ensure_one()
-        vals = {'state': 'purchase', 'date_approve': fields.Datetime.now()}
-        self.sudo().write(vals)
-        if self.lock_confirmed_po == 'lock':
-            self.sudo().write({'locked': True})
+        # Se llama al método nativo `button_approve()` (en vez de escribir
+        # el estado a mano) para que se ejecuten todos sus efectos
+        # secundarios normales: por ejemplo `purchase_stock` crea ahí mismo
+        # la recepción (picking) de la compra. Escribir el estado
+        # directamente los saltaba por completo.
+        self.sudo().with_context(purchase_custom_force_approve=True).button_approve()
         self.message_post(body=log_message)

@@ -28,6 +28,20 @@ class SaleOrder(models.Model):
         string="Mostrar Botón de Confirmar",
         compute='_compute_show_confirm_button',
     )
+    margin_ribbon_status = fields.Selection(
+        selection=[
+            ('approved', "Aprobado"),
+            ('rejected', "Rechazado"),
+            ('partial', "Parcial"),
+        ],
+        string="Estado General de Márgenes",
+        compute='_compute_margin_ribbon_status',
+        help="Verde 'Aprobado' si TODAS las líneas tienen el margen "
+             "aprobado; rojo 'Rechazado' si TODAS lo tienen rechazado; "
+             "amarillo 'Parcial' si al menos una está aprobada o rechazada "
+             "pero no todas coinciden. Vacío (sin listón) si ninguna línea "
+             "tiene todavía una decisión de margen.",
+    )
 
     @api.depends_context('uid')
     def _compute_show_confirm_button(self):
@@ -43,6 +57,23 @@ class SaleOrder(models.Model):
             order.has_pending_margin_line = any(
                 line.margin_approval_status == 'pending' for line in decidable_lines
             )
+
+    @api.depends('order_line.display_type', 'order_line.margin_approval_status')
+    def _compute_margin_ribbon_status(self):
+        for order in self:
+            statuses = order.order_line.filtered(
+                lambda l: not l.display_type
+            ).mapped('margin_approval_status')
+            if not statuses:
+                order.margin_ribbon_status = False
+            elif all(status == 'approved' for status in statuses):
+                order.margin_ribbon_status = 'approved'
+            elif all(status == 'rejected' for status in statuses):
+                order.margin_ribbon_status = 'rejected'
+            elif any(status in ('approved', 'rejected') for status in statuses):
+                order.margin_ribbon_status = 'partial'
+            else:
+                order.margin_ribbon_status = False
 
     @api.depends_context('uid')
     def _compute_can_approve_sale_margin(self):

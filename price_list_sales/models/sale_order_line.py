@@ -202,7 +202,15 @@ class SaleOrderLine(models.Model):
         self.ensure_one()
         if not self.product_id:
             return self.env["mrp.bom"]
-        return self.env["mrp.bom"]._bom_find(self.product_id)[self.product_id]
+        # `bom_type='phantom'`: sin esto, `_bom_find` trae la primera BOM de
+        # CUALQUIER tipo para el producto. Un componente del kit puede tener
+        # su propia BOM normal de fabricación (ser una sub-pieza fabricada)
+        # sin por eso ser "un kit" en sí mismo; sin este filtro, esa línea
+        # entraba por error en la rama de kit y se quedaba sin proveedor
+        # (`supplierinfo_id`), ya que esa rama no resuelve proveedor.
+        return self.env["mrp.bom"]._bom_find(
+            self.product_id, bom_type="phantom"
+        )[self.product_id]
 
     def _compute_kit_price(self):
         """Precio de un kit: la suma del precio de cada componente de su

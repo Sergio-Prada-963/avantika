@@ -1,0 +1,7 @@
+<templates>
+    <t t-name="purchase_sale_demand.ListRenderer" t-inherit="web.ListRenderer" t-inherit-mode="primary">
+        <xpath expr="//div[hasclass('o_list_renderer')]" position="before">
+            <DemandDashboard list="props.list"/>
+        </xpath>
+    </t>
+</templates>

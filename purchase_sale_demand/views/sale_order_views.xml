@@ -10,6 +10,10 @@
                 position="after">
                 <field name="already_purchased"/>
             </xpath>
+
+            <xpath expr="//field[@name='order_line']//list" position="inside">
+                <field name="already_purchased" groups="base.group_system" optional="show"/>
+            </xpath>
         </field>
     </record>
 

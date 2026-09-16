@@ -8,7 +8,18 @@
             </head>
             <body style="font-family: sans-serif; text-align: center; margin-top: 80px;">
                 <h2>Orden de Compra <t t-esc="order.name"/></h2>
-                <t t-if="order.state == 'purchase'">
+                <t t-if="error_message">
+                    <p style="color: #dc3545; font-size: 18px;">
+                        ✘ <t t-esc="error_message"/>
+                    </p>
+                    <p>Inicia sesión con la cuenta correcta e intenta de nuevo con el enlace del correo.</p>
+                </t>
+                <t t-elif="rejected">
+                    <p style="color: #dc3545; font-size: 20px;">
+                        ✖ La orden ha sido rechazada y cancelada.
+                    </p>
+                </t>
+                <t t-elif="order.state == 'purchase'">
                     <p style="color: #28a745; font-size: 20px;">
                         ✔ La orden ha sido aprobada y confirmada exitosamente.
                     </p>
