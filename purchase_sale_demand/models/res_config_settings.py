@@ -9,10 +9,6 @@ class ResConfigSettings(models.TransientModel):
         related='company_id.indicador_verde', readonly=False,
         string="Indicador Verde (días)",
     )
-    indicador_verde_claro = fields.Integer(
-        related='company_id.indicador_verde_claro', readonly=False,
-        string="Indicador Azul (días)",
-    )
     indicador_amarillo = fields.Integer(
         related='company_id.indicador_amarillo', readonly=False,
         string="Indicador Amarillo (días)",

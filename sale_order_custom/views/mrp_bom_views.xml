@@ -17,8 +17,9 @@
             <xpath expr="//field[@name='bom_line_ids']" position="attributes">
                 <attribute name="required">1</attribute>
             </xpath>
-            <xpath expr="//field[@name='bom_line_ids']" position="after">
-                <field name="kit_total_cost" readonly="1" class="fw-bold"/>
+            <xpath expr="//field[@name='bom_line_ids']//list/field[@name='product_uom_id']" position="after">
+                <field name="component_unit_cost" readonly="1"/>
+                <field name="component_cost" readonly="1" sum="Costo Total del Kit"/>
             </xpath>
         </field>
     </record>

@@ -12,30 +12,33 @@
                             string="Crear Orden(es) de Compra" class="btn-primary"/>
                 </header>
                 <field name="state" column_invisible="1"/>
-                <field name="demand_indicator" string="Indicador" widget="badge" readonly="1"
+                <field name="demand_indicator" column_invisible="1"/>
+                <field name="demand_days" string="Indicador" widget="demand_days_badge" readonly="1"
                     decoration-success="demand_indicator == 'verde'"
-                    decoration-info="demand_indicator == 'verde_claro'"
                     decoration-warning="demand_indicator == 'amarillo'"
                     decoration-danger="demand_indicator == 'rojo'"
                     decoration-muted="demand_indicator == 'negro'"/>
                 <field name="order_id" readonly="1"/>
+                <field name="order_tag_ids" string="Etiquetas" widget="many2many_tags" readonly="1"/>
                 <field name="order_partner_id" string="Cliente" readonly="1"/>
+                <field name="order_delivery_city" string="Ciudad de Entrega" readonly="1"/>
                 <field name="product_id" readonly="1"/>
-                <field name="kit_product_id" string="Componente del Kit" readonly="1" optional="show"/>
-                <widget name="stock_quant_search_widget" options="{'hide_extra_icons': True}"/>
+                <field name="kit_product_id" string="Componente" readonly="1"/>
+                <field name="product_brand" string="Marca" readonly="1"/>
                 <field name="exwork" readonly="1"/>
                 <field name="price_unit" string="Precio de Venta" readonly="1"/>
                 <field name="margin_percent" string="Margen" widget="percentage" readonly="1"/>
                 <field name="product_uom_qty" string="Cantidad Pedida" readonly="1"/>
-                <field name="location_id" string="Ubicación"/>
-                <field name="product_qty_available" string="Cantidad Disponible en Inventario" readonly="1"/>
-                <widget name="qty_at_date_widget"/>
                 <field name="qty_to_purchase" string="Cantidad a Comprar" readonly="1"/>
+                <widget name="qty_at_date_widget"/>
+                <widget name="stock_quant_search_widget" options="{'hide_extra_icons': True}"/>
                 <field name="purchase_proveedor_id" string="Proveedor" readonly="1"/>
-                <field name="purchase_currency_id" string="Moneda Proveedor" readonly="1"/>
-                <field name="product_uom_id" string="UdM" readonly="1"/>
-                <field name="qty_purchased" string="Cantidad Comprada" readonly="1"/>
-                <field name="last_purchase_order_state" string="Estado Última Compra" widget="badge" readonly="1"
+                <field name="buyer_id" string="Comprador" readonly="1"/>
+                <field name="product_qty_available" string="Cantidad Disponible en Inventario" readonly="1" optional="hide"/>
+                <field name="purchase_currency_id" string="Moneda Proveedor" readonly="1" optional="hide"/>
+                <field name="product_uom_id" string="UdM" readonly="1" optional="hide"/>
+                <field name="qty_purchased" string="Cantidad Comprada" readonly="1" optional="hide"/>
+                <field name="last_purchase_order_state" string="Estado Última Compra" widget="badge" readonly="1" optional="hide"
                     decoration-success="last_purchase_order_state == 'purchase'"
                     decoration-warning="last_purchase_order_state == 'to approve'"
                     decoration-info="last_purchase_order_state in ('draft', 'sent')"
@@ -60,8 +63,6 @@
                 <separator/>
                 <filter name="demand_indicator_verde" string="Verde"
                         domain="[('demand_indicator', '=', 'verde')]"/>
-                <filter name="demand_indicator_verde_claro" string="Azul"
-                        domain="[('demand_indicator', '=', 'verde_claro')]"/>
                 <filter name="demand_indicator_amarillo" string="Amarillo"
                         domain="[('demand_indicator', '=', 'amarillo')]"/>
                 <filter name="demand_indicator_rojo" string="Rojo"

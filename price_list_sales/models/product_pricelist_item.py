@@ -27,9 +27,9 @@ class ProductPricelistItem(models.Model):
 
             if "exwork" in kwargs:
                 # Fuente única de verdad: los datos ya calculados en la línea de venta
-                # (el ajuste de TRM x 1.05, si aplica, ya viene incluido en exwork).
+                # (el ajuste de TRM x 1.05 y el factor de importación, si aplican,
+                # ya vienen incluidos en exwork; ver sale.order.line._compute_pricing_reference_fields).
                 exwork = kwargs.get("exwork") or 0.0
-                factor_importacion = kwargs.get("factor_importacion") or 1
                 rentabilidad = kwargs.get("factor_rentabilidad", self.rentabilidad)
             else:
                 # Fallback para llamadas fuera del flujo de venta (sin línea de venta).
@@ -51,11 +51,12 @@ class ProductPricelistItem(models.Model):
                     exwork = raw_price * trm * 1.05
                 else:
                     exwork = raw_price
+                exwork *= factor_importacion
                 rentabilidad = self.rentabilidad
 
             if not rentabilidad or rentabilidad >= 100:
                 return 0.0
 
-            return exwork * factor_importacion / ((100 - rentabilidad) / 100)
+            return exwork / ((100 - rentabilidad) / 100)
 
         return super()._compute_price(product, quantity, uom, date, currency=currency, **kwargs)

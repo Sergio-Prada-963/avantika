@@ -6,26 +6,9 @@ from odoo.exceptions import UserError
 
 DEMAND_INDICATOR_SELECTION = [
     ('verde', "Verde"),
-    ('verde_claro', "Azul"),
     ('amarillo', "Amarillo"),
     ('rojo', "Rojo"),
     ('negro', "Negro"),
-]
-
-# Mismo alcance que el filtro "Pendientes por Comprar" de la vista de
-# búsqueda: son las líneas que el dashboard de indicadores cuenta y sobre
-# las que aplica el filtro al hacer click en una de sus cajas.
-PENDING_PURCHASE_DOMAIN = [
-    ('display_type', '=', False),
-    ('is_downpayment', '=', False),
-    # Excluye la línea del kit en sí (la que tiene componentes técnicos
-    # propios): sus componentes (is_kit_component_line=True) son los que
-    # aparecen individualmente en su lugar.
-    ('kit_component_line_ids', '=', False),
-    ('order_id.state', '=', 'sale'),
-    ('qty_to_purchase', '>', 0),
-    ('already_purchased', '=', False),
-    '!', ('move_ids.picking_id.state', '=', 'cancel'),
 ]
 
 
@@ -43,6 +26,16 @@ class SaleOrderLine(models.Model):
         store=True,
         help="Si esta línea es un componente técnico de un kit, el "
              "producto del kit que la generó.",
+    )
+    product_brand = fields.Char(
+        string="Marca",
+        related='product_id.product_tmpl_id.l10n_co_edi_brand',
+        store=True,
+    )
+    order_tag_ids = fields.Many2many(
+        'crm.tag',
+        string="Etiquetas",
+        related='order_id.tag_ids',
     )
     purchase_proveedor_id = fields.Many2one(
         'res.partner',
@@ -109,11 +102,32 @@ class SaleOrderLine(models.Model):
              "y todos los días vía la acción planificada (solo para líneas "
              "que aún tienen cantidad pendiente por comprar).",
     )
+    demand_days = fields.Integer(
+        string="Días",
+        compute='_compute_demand_indicator',
+        store=True,
+        aggregator=None,
+        help="Días transcurridos entre la fecha de la orden de venta y hoy; "
+             "es el número que se muestra en la columna Indicador (coloreada "
+             "según demand_indicator). Sin agregador: sumar días entre "
+             "líneas no tiene sentido y además rompe el ancho del nombre "
+             "del grupo al agrupar por otra columna (p. ej. Proveedor).",
+    )
+    buyer_id = fields.Many2one(
+        'res.users',
+        string="Comprador",
+        related='purchase_proveedor_id.buyer_id',
+        store=True,
+    )
+    order_delivery_city = fields.Char(
+        string="Ciudad de Entrega",
+        related='order_id.partner_shipping_id.city',
+        store=True,
+    )
 
     @api.depends(
         'order_id.date_order',
         'company_id.indicador_verde',
-        'company_id.indicador_verde_claro',
         'company_id.indicador_amarillo',
         'company_id.indicador_rojo',
         'company_id.indicador_negro',
@@ -124,6 +138,7 @@ class SaleOrderLine(models.Model):
             date_order = line.order_id.date_order
             if not date_order:
                 line.demand_indicator = False
+                line.demand_days = 0
                 continue
 
             days = (today - date_order.date()).days
@@ -131,8 +146,6 @@ class SaleOrderLine(models.Model):
 
             if days <= company.indicador_verde:
                 indicator = 'verde'
-            elif days <= company.indicador_verde_claro:
-                indicator = 'verde_claro'
             elif days <= company.indicador_amarillo:
                 indicator = 'amarillo'
             elif days <= company.indicador_rojo:
@@ -140,6 +153,7 @@ class SaleOrderLine(models.Model):
             else:
                 indicator = 'negro'
             line.demand_indicator = indicator
+            line.demand_days = days
 
     @api.model
     def _cron_recompute_demand_indicator(self):
@@ -150,12 +164,19 @@ class SaleOrderLine(models.Model):
         lines._compute_demand_indicator()
 
     @api.model
-    def retrieve_demand_dashboard(self):
+    def retrieve_demand_dashboard(self, domain=None):
         """Cantidad de líneas pendientes por comprar agrupadas por
         `demand_indicator`, para las cajas de resumen sobre el listado de
         Compra por Demanda. Devuelve conteos "global" (todas) y "my" (solo
         las cuyo proveedor resuelto tiene como "Comprador" (buyer_id) al
-        usuario actual)."""
+        usuario actual).
+
+        `domain` es el dominio actual y completo de la vista (ya incluye el
+        domain base de la acción más los filtros/búsqueda que el usuario
+        tenga aplicados), para que las cajas cuenten exactamente los
+        registros que se están viendo en ese momento. No se le agrega
+        ninguna condición extra aquí: si se quita el filtro "Pendientes por
+        Comprar", el dashboard también deja de exigirlo."""
         def count_by_indicator(domain):
             groups = self._read_group(domain, ['demand_indicator'], ['__count'])
             counts = {key: 0 for key, _label in self._fields['demand_indicator'].selection}
@@ -164,9 +185,10 @@ class SaleOrderLine(models.Model):
                     counts[indicator] = count
             return counts
 
-        my_domain = PENDING_PURCHASE_DOMAIN + [('purchase_proveedor_id.buyer_id', '=', self.env.uid)]
+        domain = domain or []
+        my_domain = domain + [('purchase_proveedor_id.buyer_id', '=', self.env.uid)]
         return {
-            'global': count_by_indicator(PENDING_PURCHASE_DOMAIN),
+            'global': count_by_indicator(domain),
             'my': count_by_indicator(my_domain),
         }
 
@@ -183,17 +205,10 @@ class SaleOrderLine(models.Model):
         for line in self:
             line.purchase_currency_id = line.supplierinfo_id.currency_id
 
-    @api.depends('product_id.qty_available', 'location_id')
+    @api.depends('product_id.free_qty')
     def _compute_product_qty_available(self):
         for line in self:
-            if not line.product_id:
-                line.product_qty_available = 0.0
-            elif line.location_id:
-                line.product_qty_available = self.env['stock.quant']._get_available_quantity(
-                    line.product_id, line.location_id
-                )
-            else:
-                line.product_qty_available = line.product_id.qty_available
+            line.product_qty_available = line.product_id.free_qty if line.product_id else 0.0
 
     @api.depends(
         'move_ids.state',

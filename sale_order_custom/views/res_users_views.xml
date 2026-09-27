@@ -16,6 +16,16 @@
                     <div colspan="2" class="text-muted mb-2">
                         Permite editar manualmente el precio unitario de las líneas de venta.
                     </div>
+                    <field name="can_create_sales" widget="boolean_toggle"/>
+                    <div colspan="2" class="text-muted mb-2">
+                        Permite crear e importar órdenes de venta manualmente (por
+                        defecto solo se pueden generar desde el CRM).
+                    </div>
+                    <field name="can_duplicate_sales" widget="boolean_toggle"/>
+                    <div colspan="2" class="text-muted mb-2">
+                        Permite duplicar una orden de venta existente, sin necesidad
+                        de tener también permiso para crear órdenes desde cero.
+                    </div>
                     <field name="show_confirm_button_sale" widget="boolean_toggle"/>
                     <div colspan="2" class="text-muted mb-2">
                         Muestra los botones de Confirmar y Enviar en las órdenes de venta.

@@ -10,9 +10,12 @@
 # ------------------------------------------------
 # SECCIÓN 0 ► CONFIGURACIÓN
 # ------------------------------------------------
-MARGEN_MINIMO = 12.0  # % - TODO: ajustar umbral real
+MARGEN_MINIMO = 12.0  # % - Umbral de rentabilidad
 
 NAVY = '#0E3A5C'
+AMBER = '#B45309'
+COMPRA_BG = '#1E40AF'
+VENTA_BG = '#047857'
 TEAL = '#00897B'
 ROJO_SUAVE = '#F8D7DA'
 BG_LIGHT = '#F6F9FB'
@@ -22,52 +25,57 @@ VERDE_OK = '#1E8A54'
 ROJO_ALERTA = '#C0392B'
 BLANCO = '#FFFFFF'
 
-CAMPOS_MARCA_CANDIDATOS = ('product_brand_id', 'brand_id', 'x_studio_marca', 'dian_brand')
-
-# Campo confirmado en res.partner (módulo price_list_sales): 'factor_importacion'
-# (número flotante, etiqueta "Factor de Importación").
 CAMPOS_FACTOR_IMPORTACION_CANDIDATOS = (
     'factor_importacion',
 )
 
-def fmt(v):
-    return '${:,.0f}'.format(v).replace(',', '.')
+def fmt_moneda(v, moneda):
+    """Formato estilo contabilidad HTML: Moneda+$ a la izquierda, cifra a la derecha en una sola línea sin desbordes"""
+    cod_moneda = moneda.name if moneda else ''
+    simbolo = '$'
+    s = '{:,.2f}'.format(v or 0.0)
+    entero, decimales = s.split('.')
+    val_str = entero.replace(',', '.') + ',' + decimales
+    
+    etiqueta = ('%s %s' % (cod_moneda, simbolo)).strip()
+    return (
+        '<div style="display:block;width:100%%;white-space:nowrap;clear:both;">'
+        '<span style="float:left;padding-right:8px;font-size:inherit;font-weight:inherit;">%s</span>'
+        '<span style="float:right;font-size:inherit;font-weight:inherit;">%s</span>'
+        '<div style="clear:both;"></div>'
+        '</div>'
+    ) % (etiqueta, val_str)
 
 def fmt_qty(v):
-    return '{:,.0f}'.format(v).replace(',', '.')
+    return '{:,.0f}'.format(v or 0).replace(',', '.')
 
 def fmt_rate(v):
-    s = '{:,.4f}'.format(v)
+    s = '{:,.2f}'.format(v or 0.0)
     entero, decimales = s.split('.')
-    decimales = decimales.rstrip('0') or '00'
     return entero.replace(',', '.') + ',' + decimales
 
 def fmt_factor(v):
-    s = '{:,.4f}'.format(v)
+    s = '{:,.4f}'.format(v or 1.0)
     entero, decimales = s.split('.')
     decimales = decimales.rstrip('0') or '00'
     return entero.replace(',', '.') + ',' + decimales
 
-def margen(vendido, comprado):
-    utilidad = vendido - comprado
-    pct = (utilidad / vendido * 100) if vendido else 0
-    return utilidad, pct
+def margen_formula_exacta(p_venta_unit, c_puesto_unit):
+    if p_venta_unit:
+        pct = (1.0 - (c_puesto_unit / p_venta_unit)) * 100.0
+    else:
+        pct = 0.0
+    return pct
 
 def color_pct(pct):
     return VERDE_OK if pct >= MARGEN_MINIMO else ROJO_ALERTA
 
-def obtener_marca(producto):
-    for fname in CAMPOS_MARCA_CANDIDATOS:
-        if fname in producto._fields:
-            val = producto[fname]
-            if val:
-                return val.name if hasattr(val, 'name') else str(val)
-    return ''
+def obtener_marca_segura(producto):
+    if 'l10n_co_edi_brand' in producto._fields:
+        return producto.l10n_co_edi_brand or '—'
+    return '—'
 
 def obtener_factor_importacion(proveedor):
-    """Devuelve el factor de importación configurado en la ficha del
-    proveedor. Si no se encuentra ningún campo candidato, retorna 1.0
-    (sin efecto) para no romper la liquidación."""
     for fname in CAMPOS_FACTOR_IMPORTACION_CANDIDATOS:
         if fname in proveedor._fields:
             val = proveedor[fname]
@@ -79,17 +87,22 @@ def obtener_factor_importacion(proveedor):
     return 1.0
 
 def fila_row(cols, bg, bold=False, border_bottom=None):
-    """cols: lista de tuplas (valor, alineacion, resaltar_rojo, color_override)."""
-    weight = '600' if bold else '400'
     border = ('border-bottom:1px solid %s;' % border_bottom) if border_bottom else ''
     tds = ''
     for valor, align, resaltar, color_ov in cols:
-        cell_bg = ROJO_SUAVE if resaltar else bg
-        color = color_ov if color_ov else '#1F2937'
+        if resaltar:
+            cell_bg = ROJO_ALERTA
+            color = BLANCO
+            weight = '700'
+        else:
+            cell_bg = bg
+            color = color_ov if color_ov else '#1F2937'
+            weight = '600' if bold else '400'
+
         tds += (
-            '<td style="padding:9px 8px;text-align:%s;color:%s !important;'
-            'background:%s !important;font-weight:%s;font-size:12.5px;white-space:nowrap;">%s</td>'
-        ) % (align, color, cell_bg, weight, valor)
+            '<td bgcolor="%s" style="padding:9px 10px;text-align:%s;color:%s !important;'
+            'background-color:%s !important;background:%s !important;font-weight:%s;font-size:12.5px;white-space:nowrap;min-width:130px;">%s</td>'
+        ) % (cell_bg, align, color, cell_bg, cell_bg, weight, valor)
     return '<tr bgcolor="%s" style="%s">%s</tr>' % (bg, border, tds)
 
 base_url = env['ir.config_parameter'].sudo().get_param('web.base.url')
@@ -110,10 +123,10 @@ EMAIL_APROBADOR = aprobador.email
 MONEDA_EMPRESA = po.company_id.currency_id
 fecha_conversion = po.date_order.date() if po.date_order else datetime.date.today()
 
-def convertir(monto, moneda_origen):
-    if not moneda_origen or moneda_origen.id == MONEDA_EMPRESA.id:
+def convertir_moneda(monto, moneda_origen, moneda_destino):
+    if not moneda_origen or not moneda_destino or moneda_origen.id == moneda_destino.id:
         return monto
-    return moneda_origen._convert(monto, MONEDA_EMPRESA, po.company_id, fecha_conversion)
+    return moneda_origen._convert(monto, moneda_destino, po.company_id, fecha_conversion)
 
 # ------------------------------------------------
 # SECCIÓN 1 ► PROCESAR LA ORDEN SELECCIONADA
@@ -125,49 +138,59 @@ fecha_oc = po.date_order.strftime('%d/%m/%Y') if po.date_order else ''
 proveedor_partner = po.partner_id
 proveedor = proveedor_partner.name or ''
 empresa = po.company_id.name or 'AVANTIKA'
-moneda_oc = po.currency_id.name if po.currency_id else MONEDA_EMPRESA.name
+moneda_oc = po.currency_id
 
-# ► Condiciones de pago (proveedor y de esta OC)
-cond_pago_proveedor = ''
-if proveedor_partner.property_supplier_payment_term_id:
-    cond_pago_proveedor = proveedor_partner.property_supplier_payment_term_id.name
-cond_pago_oc = po.payment_term_id.name if po.payment_term_id else ''
+# Conteo previo para detectar productos duplicados en esta orden
+conteo_productos = {}
+for line in po.order_line:
+    pid = line.product_id.id
+    conteo_productos[pid] = conteo_productos.get(pid, 0) + 1
 
-# ► Factor de importación del proveedor (aplica a todas las líneas de esta OC)
 factor_importacion = obtener_factor_importacion(proveedor_partner)
 hay_factor = factor_importacion and factor_importacion != 1.0
 
-hay_conversion = bool(po.currency_id and po.currency_id.id != MONEDA_EMPRESA.id)
+cond_pago_proveedor = proveedor_partner.property_supplier_payment_term_id.name if proveedor_partner.property_supplier_payment_term_id else ''
+cond_pago_oc = po.payment_term_id.name if po.payment_term_id else ''
+
+hay_conversion = bool(moneda_oc and moneda_oc.id != MONEDA_EMPRESA.id)
 fila_tasa_html = ''
 if hay_conversion:
-    tasa_cambio = convertir(1.0, po.currency_id)
+    tasa_cambio = convertir_moneda(1.0, moneda_oc, MONEDA_EMPRESA)
     fila_tasa_html = '''
       <tr style="border-top:1px solid %s;">
-        <td style="color:%s !important;font-size:12px;">TRM / Tasa de Cambio</td>
-        <td style="font-size:13px;font-weight:600;color:#1F2937 !important;" colspan="3">
-            1 %s = $%s %s &nbsp;<span style="color:%s !important;font-size:11px;">(al %s)</span>
+        <td style="color:%s !important;font-size:12px;text-align:left;width:200px;padding:8px 12px;">TRM / Tasa de Cambio</td>
+        <td style="font-size:13px;font-weight:600;color:#1F2937 !important;text-align:left;padding:8px 12px;">
+            1 %s = %s &nbsp;<span style="color:%s !important;font-size:11px;">(al %s)</span>
         </td>
       </tr>
-    ''' % (BORDER, GRAY_TXT, moneda_oc, fmt_rate(tasa_cambio), MONEDA_EMPRESA.name, GRAY_TXT, fecha_oc)
+    ''' % (BORDER, GRAY_TXT, moneda_oc.name, fmt_moneda(tasa_cambio, MONEDA_EMPRESA), GRAY_TXT, fecha_oc)
 
 filas_html = ''
-filas_kits_html = ''
-total_costo_exw = 0.0
-total_costo_compra = 0.0
-total_vendido = 0.0
+total_exw_moneda_compra = 0.0
+total_puesto_convertido_empresa = 0.0
+total_venta_moneda_empresa = 0.0
 
 for item_num, line in enumerate(po.order_line, start=1):
     producto = line.product_id
     codigo = producto.default_code or '—'
-    cantidad_compra = line.product_qty  # = "Cantidad a Comprar" de esta línea
+    marca = obtener_marca_segura(producto)
+    cantidad_compra = line.product_qty
 
-    # ► Costo EXW (cotizado) en moneda del proveedor, sin convertir
-    costo_exw_unit_moneda_prov = line.price_unit
-    # ► Costo EXW convertido a moneda de la compañía
-    costo_exw_unit = convertir(costo_exw_unit_moneda_prov, line.currency_id)
-    # ► Costo de Compra = Costo EXW convertido x Factor de Importación del proveedor
-    costo_compra_unit = costo_exw_unit * factor_importacion
-    comprado = costo_compra_unit * cantidad_compra  # base para el cálculo de rentabilidad
+    es_repetido = conteo_productos.get(producto.id, 0) > 1
+
+    seller = producto.seller_ids.filtered(lambda s: s.partner_id.id == proveedor_partner.id)
+    if seller:
+        costo_cotizado_unit = seller[0].price
+        moneda_cotizada = seller[0].currency_id or moneda_oc
+    else:
+        costo_cotizado_unit = producto.standard_price
+        moneda_cotizada = producto.cost_currency_id or MONEDA_EMPRESA
+
+    costo_exw_unit = line.price_unit
+    costo_total_exw = costo_exw_unit * cantidad_compra
+    costo_exw_unit_cop = convertir_moneda(costo_exw_unit, moneda_oc, MONEDA_EMPRESA)
+    costo_puesto_unit_cop = costo_exw_unit_cop * factor_importacion
+    costo_puesto_total_cop = costo_puesto_unit_cop * cantidad_compra
 
     venta_line = line.sale_line_id
     venta = line.sale_order_id or (venta_line.order_id if venta_line else False)
@@ -177,20 +200,25 @@ for item_num, line in enumerate(po.order_line, start=1):
         direccion = venta.partner_shipping_id or venta.partner_id
         ciudad_line = direccion.city or ''
 
+    moneda_venta = venta_line.currency_id if venta_line else (venta.currency_id if venta else MONEDA_EMPRESA)
     if venta_line:
-        precio_unit_venta = convertir(venta_line.price_unit, venta_line.currency_id)
+        precio_unit_venta = venta_line.price_unit
     else:
-        precio_unit_venta = convertir(producto.list_price, producto.currency_id)
-    vendido = precio_unit_venta * cantidad_compra
+        precio_unit_venta = producto.list_price
+
+    total_venta = precio_unit_venta * cantidad_compra
+
+    precio_unit_venta_cop = convertir_moneda(precio_unit_venta, moneda_venta, MONEDA_EMPRESA)
+    pct_margen = margen_formula_exacta(precio_unit_venta_cop, costo_puesto_unit_cop)
 
     presentacion = line.product_uom_id.name if line.product_uom_id else ''
-    marca = obtener_marca(producto)
 
     stock_disponible = venta_line.product_qty_available if venta_line else producto.qty_available
     cantidad_pedida = venta_line.product_uom_qty if venta_line else line.product_qty
-    cantidad_a_comprar = venta_line.qty_to_purchase if venta_line else line.product_qty
-    hay_diferencia_cantidad = fmt_qty(cantidad_pedida) != fmt_qty(cantidad_a_comprar)
-    vencimiento_venta = venta_line.due_date.strftime('%d/%m/%Y') if venta_line and venta_line.due_date else ''
+    cantidad_a_comprar = line.product_qty
+
+    hay_diferencia_cantidad = cantidad_a_comprar != cantidad_pedida
+    vencimiento_venta = venta_line.due_date.strftime('%d/%m/%y') if venta_line and venta_line.due_date else ''
 
     otras_pendientes = env['sale.order.line'].search([
         ('product_id', '=', producto.id),
@@ -199,7 +227,6 @@ for item_num, line in enumerate(po.order_line, start=1):
     ])
     backorder = sum(l.qty_to_deliver for l in otras_pendientes)
 
-    # ¿El producto que se está comprando ES un kit (tiene BOM fantasma propio)?
     bom_propio = env['mrp.bom'].search([
         ('product_tmpl_id', '=', producto.product_tmpl_id.id),
         ('type', '=', 'phantom'),
@@ -208,173 +235,106 @@ for item_num, line in enumerate(po.order_line, start=1):
     if bom_propio:
         comp_vendido = 0.0
         comp_exw = 0.0
-        comp_compra = 0.0
         filas_componentes = ''
         for bl in bom_propio.bom_line_ids:
             comp = bl.product_id
             cant = bl.product_qty * cantidad_compra
-            v_unit = convertir(comp.list_price, comp.currency_id)
-            c_exw_unit = convertir(comp.standard_price, comp.currency_id)
-            c_compra_unit = c_exw_unit * factor_importacion
+            v_unit = comp.list_price
+            c_exw_unit = comp.standard_price
+            
             v = v_unit * cant
             c_exw = c_exw_unit * cant
-            c_compra = c_compra_unit * cant
             comp_vendido += v
             comp_exw += c_exw
-            comp_compra += c_compra
-            _, p = margen(v, c_compra)
-            filas_componentes += (
-                '<tr bgcolor="%s"><td colspan="12" style="padding:7px 8px 7px 34px;color:%s !important;font-size:12px;background:%s !important;">- %s</td>'
-                '<td style="padding:7px 8px;text-align:right;color:%s !important;font-size:12px;background:%s !important;">%s</td>'
-                '<td style="padding:7px 8px;text-align:right;color:%s !important;font-size:12px;background:%s !important;">%s</td>'
-                '<td style="padding:7px 8px;text-align:right;color:%s !important;font-size:12px;background:%s !important;">%s</td>'
-                '<td style="padding:7px 8px;text-align:right;color:%s !important;font-size:12px;background:%s !important;">%.1f%%</td></tr>'
-            ) % (BLANCO, GRAY_TXT, BLANCO, comp.name,
-                 GRAY_TXT, BLANCO, fmt(c_exw),
-                 GRAY_TXT, BLANCO, fmt(c_compra),
-                 GRAY_TXT, BLANCO, fmt(v),
-                 color_pct(p), BLANCO, p)
+            
+            c_puesto_unit_c = convertir_moneda(c_exw_unit, comp.cost_currency_id, MONEDA_EMPRESA) * factor_importacion
+            v_unit_c = convertir_moneda(v_unit, moneda_venta, MONEDA_EMPRESA)
+            p = margen_formula_exacta(v_unit_c, c_puesto_unit_c)
 
-        vendido, comprado = comp_vendido, comp_compra
-        costo_exw_total_linea = comp_exw
-        _, pct = margen(vendido, comprado)
+            filas_componentes += (
+                '<tr bgcolor="%s"><td colspan="12" style="padding:7px 8px 7px 34px;color:%s !important;font-size:12px;background:%s !important;text-align:left;">- %s</td>'
+                '<td style="padding:7px 8px;text-align:right;color:%s !important;font-size:12px;background:%s !important;min-width:130px;">%s</td>'
+                '<td style="padding:7px 8px;text-align:right;color:%s !important;font-size:12px;background:%s !important;min-width:130px;">%s</td>'
+                '<td style="padding:7px 8px;text-align:right;color:%s !important;font-size:12px;background:%s !important;min-width:130px;">%s</td>'
+                '<td style="padding:7px 8px;text-align:right;color:%s !important;font-size:12px;background:%s !important;min-width:130px;">%s</td>'
+                '<td style="padding:7px 8px;text-align:right;color:%s !important;font-size:12px;background:%s !important;min-width:130px;">%s</td>'
+                '<td style="padding:7px 8px;text-align:right;color:%s !important;font-size:12px;background:%s !important;min-width:130px;">%s</td>'
+                '<td style="padding:7px 8px;text-align:right;color:%s !important;font-size:12px;background:%s !important;min-width:130px;">%s</td>'
+                '<td style="padding:7px 8px;text-align:center;color:%s !important;font-size:12px;background:%s !important;">%.1f%%</td></tr>'
+            ) % (BLANCO, GRAY_TXT, BLANCO, comp.name,
+                 GRAY_TXT, BLANCO, fmt_moneda(c_exw_unit, comp.cost_currency_id),
+                 GRAY_TXT, BLANCO, fmt_moneda(c_exw_unit, moneda_oc),
+                 GRAY_TXT, BLANCO, fmt_moneda(c_exw, moneda_oc),
+                 GRAY_TXT, BLANCO, fmt_moneda(c_puesto_unit_c, MONEDA_EMPRESA),
+                 GRAY_TXT, BLANCO, fmt_moneda(c_puesto_unit_c * cant, MONEDA_EMPRESA),
+                 GRAY_TXT, BLANCO, fmt_moneda(v_unit, moneda_venta),
+                 GRAY_TXT, BLANCO, fmt_moneda(v, moneda_venta),
+                 color_pct(p), BLANCO, p)
 
         cols = [
             (item_num, 'center', False, GRAY_TXT),
-            (codigo, 'left', False, None),
-            (producto.name + ' (KIT)', 'left', False, NAVY),
-            (marca or '—', 'left', False, None),
-            (presentacion or '—', 'left', False, None),
+            (codigo, 'center', es_repetido, None),
+            (producto.name + ' (KIT)', 'left', es_repetido, NAVY if not es_repetido else None),
+            (marca, 'center', False, None),
+            (presentacion or '—', 'center', False, None),
             (fmt_qty(cantidad_pedida), 'right', False, None),
             (fmt_qty(cantidad_a_comprar), 'right', hay_diferencia_cantidad, None),
             (fmt_qty(stock_disponible), 'right', False, None),
             (fmt_qty(backorder), 'right', False, None),
             (cliente_line, 'left', False, None),
-            (ciudad_line or '—', 'left', False, None),
+            (ciudad_line or '—', 'center', False, None),
             (vencimiento_venta or '—', 'center', False, None),
-            (fmt(costo_exw_total_linea), 'right', False, None),
-            (fmt(comprado), 'right', False, None),
-            (fmt(vendido), 'right', False, None),
-            ('%.1f%%' % pct, 'right', False, color_pct(pct)),
+            (fmt_moneda(costo_cotizado_unit, moneda_cotizada), 'right', False, None),
+            (fmt_moneda(costo_exw_unit, moneda_oc), 'right', False, None),
+            (fmt_moneda(costo_total_exw, moneda_oc), 'right', False, None),
+            (fmt_moneda(costo_puesto_unit_cop, MONEDA_EMPRESA), 'right', False, None),
+            (fmt_moneda(costo_puesto_total_cop, MONEDA_EMPRESA), 'right', False, None),
+            (fmt_moneda(precio_unit_venta, moneda_venta), 'right', False, None),
+            (fmt_moneda(total_venta, moneda_venta), 'right', False, None),
+            ('%.1f%%' % pct_margen, 'center', False, color_pct(pct_margen)),
         ]
         filas_html += fila_row(cols, bg=BG_LIGHT, bold=True)
         filas_html += filas_componentes
 
     else:
-        costo_exw_total_linea = costo_exw_unit * cantidad_compra
-        _, pct = margen(vendido, comprado)
-
-        # ¿Esta línea de compra corresponde a un componente de un KIT vendido?
         kit_padre_line = venta_line.linked_line_id if venta_line and venta_line.linked_line_id else False
-
         nombre_producto = producto.name
         if kit_padre_line:
             nombre_producto += ' (pieza de kit: %s)' % kit_padre_line.product_id.name
 
         cols = [
             (item_num, 'center', False, GRAY_TXT),
-            (codigo, 'left', False, None),
-            (nombre_producto, 'left', False, None),
-            (marca or '—', 'left', False, None),
-            (presentacion or '—', 'left', False, None),
+            (codigo, 'center', es_repetido, None),
+            (nombre_producto, 'left', es_repetido, None),
+            (marca, 'center', False, None),
+            (presentacion or '—', 'center', False, None),
             (fmt_qty(cantidad_pedida), 'right', False, None),
             (fmt_qty(cantidad_a_comprar), 'right', hay_diferencia_cantidad, None),
             (fmt_qty(stock_disponible), 'right', False, None),
             (fmt_qty(backorder), 'right', False, None),
             (cliente_line, 'left', False, None),
-            (ciudad_line or '—', 'left', False, None),
+            (ciudad_line or '—', 'center', False, None),
             (vencimiento_venta or '—', 'center', False, None),
-            (fmt(costo_exw_total_linea), 'right', False, None),
-            (fmt(comprado), 'right', False, None),
-            (fmt(vendido), 'right', False, None),
-            ('%.1f%%' % pct, 'right', False, color_pct(pct)),
+            (fmt_moneda(costo_cotizado_unit, moneda_cotizada), 'right', False, None),
+            (fmt_moneda(costo_exw_unit, moneda_oc), 'right', False, None),
+            (fmt_moneda(costo_total_exw, moneda_oc), 'right', False, None),
+            (fmt_moneda(costo_puesto_unit_cop, MONEDA_EMPRESA), 'right', False, None),
+            (fmt_moneda(costo_puesto_total_cop, MONEDA_EMPRESA), 'right', False, None),
+            (fmt_moneda(precio_unit_venta, moneda_venta), 'right', False, None),
+            (fmt_moneda(total_venta, moneda_venta), 'right', False, None),
+            ('%.1f%%' % pct_margen, 'center', False, color_pct(pct_margen)),
         ]
         filas_html += fila_row(cols, bg=BLANCO, bold=False, border_bottom=BORDER)
 
-        if kit_padre_line and kit_padre_line.id not in kits_procesados:
-            kits_procesados.add(kit_padre_line.id)
+    total_exw_moneda_compra += costo_total_exw
+    total_puesto_convertido_empresa += costo_puesto_total_cop
+    total_venta_moneda_empresa += convertir_moneda(total_venta, moneda_venta, MONEDA_EMPRESA)
 
-            kit_producto = kit_padre_line.product_id
-            kit_vendido = convertir(kit_padre_line.price_subtotal, kit_padre_line.currency_id)
+pct_ponderado = margen_formula_exacta(total_venta_moneda_empresa, total_puesto_convertido_empresa)
 
-            componentes_venta = kit_padre_line.order_id.order_line.filtered(
-                lambda l: l.linked_line_id.id == kit_padre_line.id
-            )
-
-            filas_comp_kit = ''
-            total_comprado_kit = 0.0
-            for comp_sale_line in componentes_venta:
-                comp = comp_sale_line.product_id
-
-                lineas_compra_comp = comp_sale_line.purchase_line_ids.filtered(lambda l: l.order_id.state != 'cancel')
-
-                if lineas_compra_comp:
-                    linea_compra = lineas_compra_comp[0]
-                    factor_comp = obtener_factor_importacion(linea_compra.order_id.partner_id)
-                    valor_comp = convertir(linea_compra.price_unit, linea_compra.currency_id) * factor_comp * comp_sale_line.product_uom_qty
-                    oc_comp = linea_compra.order_id.name
-                    prov_comp = linea_compra.order_id.partner_id.name
-                    estado_txt = 'Comprado (para esta venta)'
-                else:
-                    valor_comp = convertir(comp.standard_price, comp.currency_id) * comp_sale_line.product_uom_qty
-                    oc_comp = '-'
-                    prov_comp = '-'
-                    estado_txt = 'Sin comprar (costo estimado)'
-
-                total_comprado_kit += valor_comp
-                filas_comp_kit += (
-                    '<tr bgcolor="%s"><td style="padding:6px 10px 6px 28px;color:%s !important;font-size:12px;background:%s !important;">- %s</td>'
-                    '<td style="padding:6px 10px;color:%s !important;font-size:12px;background:%s !important;">%s</td>'
-                    '<td style="padding:6px 10px;color:%s !important;font-size:12px;background:%s !important;">%s</td>'
-                    '<td style="padding:6px 10px;text-align:right;color:%s !important;font-size:12px;background:%s !important;">%s</td>'
-                    '<td style="padding:6px 10px;color:%s !important;font-size:12px;background:%s !important;">%s</td></tr>'
-                ) % (BG_LIGHT, GRAY_TXT, BG_LIGHT, comp.name,
-                     GRAY_TXT, BG_LIGHT, oc_comp,
-                     GRAY_TXT, BG_LIGHT, prov_comp,
-                     GRAY_TXT, BG_LIGHT, fmt(valor_comp),
-                     GRAY_TXT, BG_LIGHT, estado_txt)
-
-            _, pct_kit = margen(kit_vendido, total_comprado_kit)
-            filas_kits_html += (
-                '<tr><td colspan="5" bgcolor="%s" style="background:%s !important;color:#fff !important;padding:10px 12px;border-radius:6px 6px 0 0;">'
-                '<span style="font-weight:600;">KIT: %s</span>'
-                '&nbsp;&nbsp;|&nbsp;&nbsp;OV: %s'
-                '&nbsp;&nbsp;|&nbsp;&nbsp;Costo Compra %s'
-                '&nbsp;&nbsp;|&nbsp;&nbsp;Precio Venta %s'
-                '&nbsp;&nbsp;|&nbsp;&nbsp;<span style="color:%s !important;font-weight:600;">%.1f%%</span>'
-                '</td></tr>'
-            ) % (NAVY, NAVY, kit_producto.name, kit_padre_line.order_id.name,
-                 fmt(total_comprado_kit), fmt(kit_vendido), TEAL, pct_kit)
-            filas_kits_html += (
-                '<tr><td colspan="5" style="padding:0;">'
-                '<table bgcolor="%s" style="width:100%%;border-collapse:collapse;background:%s !important;">%s</table>'
-                '</td></tr>'
-            ) % (BG_LIGHT, BG_LIGHT, filas_comp_kit)
-
-    total_costo_exw += costo_exw_total_linea
-    total_costo_compra += comprado
-    total_vendido += vendido
-
-_, pct_ponderado = margen(total_vendido, total_costo_compra)
 link_po = '%s/odoo/purchase/%s' % (base_url, po.id)
 link_aprobar = po.get_portal_url(suffix='/approve')
-# Enlace de un clic (igual que "Aprobar"): cancela la orden directamente
-# (button_cancel) sin salir del correo; ver controllers/portal.py.
 link_rechazar = po.get_portal_url(suffix='/reject')
-
-bloque_kits = ''
-if filas_kits_html:
-    bloque_kits = '''
-    <tr><td style="padding:28px 0 12px;">
-        <span style="font-size:15px;font-weight:600;color:%s !important;">📦 Rentabilidad de Kits</span>
-        <div style="font-size:12px;color:%s !important;margin-top:2px;">Kits vendidos en la misma orden de venta, con componentes comprados en varias órdenes/proveedores.</div>
-    </td></tr>
-    <tr><td>
-        <table style="width:100%%;border-collapse:collapse;border:1px solid %s;border-radius:8px;overflow:hidden;">
-            %s
-        </table>
-    </td></tr>
-    ''' % (NAVY, GRAY_TXT, BORDER, filas_kits_html)
 
 boton_rechazar_html = ''
 if link_rechazar:
@@ -389,7 +349,7 @@ if link_rechazar:
 # SECCIÓN 2 ► CONSTRUCCIÓN DEL HTML
 # ------------------------------------------------
 html = '''
-<div style="font-family: Arial, Helvetica, sans-serif; background:%(bg)s !important; padding:24px 0; color-scheme:light; -webkit-color-scheme:light;">
+<div style="font-family: Arial, Helvetica, sans-serif; background-color:%(bg)s; padding:24px 0;">
 <table align="center" cellpadding="0" cellspacing="0" bgcolor="%(bg)s" style="width:680px;max-width:94%%;margin:0 auto;background:%(bg)s !important;">
 
   <tr><td style="padding:0 4px 20px;">
@@ -407,44 +367,44 @@ html = '''
 
   <tr><td style="padding-bottom:20px;">
     <table style="width:100%%;" cellpadding="0" cellspacing="0"><tr>
-      <td style="width:33%%;padding-right:8px;">
-        <div style="background:%(blanco)s !important;border:1px solid %(border)s;border-radius:10px;padding:14px 16px;">
-          <div style="font-size:12px;color:%(gray)s !important;">📦 Costo EXW Total</div>
-          <div style="font-size:19px;font-weight:700;color:%(navy)s !important;margin-top:4px;">%(tot_exw)s</div>
+      <td style="width:33.33%%;padding-right:6px;">
+        <div style="background-color:%(blanco)s;border:1px solid %(border)s;border-radius:10px;padding:14px 12px;text-align:center;">
+          <div style="font-size:11.5px;color:%(gray)s !important;">📦 Costo Compra Total EXW</div>
+          <div style="font-size:16px;font-weight:700;color:%(navy)s !important;margin-top:4px;">%(tot_exw)s</div>
         </div>
       </td>
-      <td style="width:33%%;padding:0 4px;">
-        <div style="background:%(blanco)s !important;border:1px solid %(border)s;border-radius:10px;padding:14px 16px;">
-          <div style="font-size:12px;color:%(gray)s !important;">🧾 Costo de Compra Total</div>
-          <div style="font-size:19px;font-weight:700;color:%(navy)s !important;margin-top:4px;">%(tot_comprado)s</div>
+      <td style="width:33.33%%;padding:0 3px;">
+        <div style="background-color:%(blanco)s;border:1px solid %(border)s;border-radius:10px;padding:14px 12px;text-align:center;">
+          <div style="font-size:11.5px;color:%(gray)s !important;">💰 Precio Venta Total</div>
+          <div style="font-size:16px;font-weight:700;color:%(navy)s !important;margin-top:4px;">%(tot_venta_empresa)s</div>
         </div>
       </td>
-      <td style="width:33%%;padding-left:8px;">
-        <div style="background:%(blanco)s !important;border:1px solid %(border)s;border-radius:10px;padding:14px 16px;">
-          <div style="font-size:12px;color:%(gray)s !important;">📈 Rentabilidad</div>
-          <div style="font-size:19px;font-weight:700;color:%(color_total)s !important;margin-top:4px;">%(pct_total)s%%</div>
+      <td style="width:33.33%%;padding-left:6px;">
+        <div style="background-color:%(blanco)s;border:1px solid %(border)s;border-radius:10px;padding:14px 12px;text-align:center;">
+          <div style="font-size:11.5px;color:%(gray)s !important;">📈 Margen Promedio</div>
+          <div style="font-size:16px;font-weight:700;color:%(color_total)s !important;margin-top:4px;">%(pct_total)s%%</div>
         </div>
       </td>
     </tr></table>
   </td></tr>
 
   <tr><td style="padding-bottom:20px;">
-    <table style="width:100%%;background:%(blanco)s !important;border:1px solid %(border)s;border-radius:10px;" cellpadding="10" cellspacing="0" bgcolor="%(blanco)s">
+    <table style="width:100%%;background:%(blanco)s !important;border:1px solid %(border)s;border-radius:10px;" cellpadding="6" cellspacing="0" bgcolor="%(blanco)s">
       <tr>
-        <td style="color:%(gray)s !important;font-size:12px;width:25%%;">Proveedor</td>
-        <td style="font-size:13px;font-weight:600;color:#1F2937 !important;width:75%%;" colspan="3">%(proveedor)s</td>
+        <td style="color:%(gray)s !important;font-size:12px;width:200px;text-align:left;padding:8px 12px;">Proveedor</td>
+        <td style="font-size:13px;font-weight:600;color:#1F2937 !important;text-align:left;padding:8px 12px;">%(proveedor)s</td>
       </tr>
       <tr style="border-top:1px solid %(border)s;">
-        <td style="color:%(gray)s !important;font-size:12px;">Moneda OC</td>
-        <td style="font-size:13px;font-weight:600;color:#1F2937 !important;" colspan="3">%(moneda_oc)s</td>
+        <td style="color:%(gray)s !important;font-size:12px;width:200px;text-align:left;padding:8px 12px;">Moneda OC</td>
+        <td style="font-size:13px;font-weight:600;color:#1F2937 !important;text-align:left;padding:8px 12px;">%(moneda_oc)s</td>
       </tr>
       <tr style="border-top:1px solid %(border)s;">
-        <td style="color:%(gray)s !important;font-size:12px;">Cond. Pago Proveedor</td>
-        <td style="font-size:13px;font-weight:600;color:#1F2937 !important;" colspan="3">%(cond_pago_proveedor)s</td>
+        <td style="color:%(gray)s !important;font-size:12px;width:200px;text-align:left;padding:8px 12px;">Cond. Pago Proveedor</td>
+        <td style="font-size:13px;font-weight:600;color:#1F2937 !important;text-align:left;padding:8px 12px;">%(cond_pago_proveedor)s</td>
       </tr>
       <tr style="border-top:1px solid %(border)s;">
-        <td style="color:%(gray)s !important;font-size:12px;">Cond. Pago de esta OC</td>
-        <td style="font-size:13px;font-weight:600;color:#1F2937 !important;" colspan="3">%(cond_pago_oc)s</td>
+        <td style="color:%(gray)s !important;font-size:12px;width:200px;text-align:left;padding:8px 12px;">Cond. Pago de esta OC</td>
+        <td style="font-size:13px;font-weight:600;color:#1F2937 !important;text-align:left;padding:8px 12px;">%(cond_pago_oc)s</td>
       </tr>
       %(fila_factor)s
       %(fila_tasa)s
@@ -457,47 +417,63 @@ html = '''
   </td></tr>
   <tr><td>
     <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid %(border)s;border-radius:10px;">
-    <table style="min-width:1150px;width:100%%;border-collapse:collapse;background:%(blanco)s !important;" bgcolor="%(blanco)s">
+    <table style="min-width:1850px;width:100%%;border-collapse:collapse;background:%(blanco)s !important;" bgcolor="%(blanco)s">
+      <!-- Encabezados en Mayúscula Sostenida, Palabras Completas y Negrita -->
       <tr bgcolor="%(navy)s">
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:center;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">#</th>
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:left;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">Código</th>
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:left;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">Producto</th>
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:left;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">Marca</th>
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:left;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">Present.</th>
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:right;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">Cant. Pedida</th>
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:right;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">Cant. Comprar</th>
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:right;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">Stock</th>
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:right;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">Backorder</th>
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:left;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">Cliente</th>
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:left;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">Ciudad</th>
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:center;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">F. Compromiso</th>
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:right;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">Costo EXW</th>
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:right;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">Costo Compra</th>
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:right;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">Precio Venta</th>
-        <th bgcolor="%(navy)s" style="padding:9px 8px;text-align:right;background-color:%(navy)s;color:#ffffff;font-size:11.5px;font-family:Arial, Helvetica, sans-serif;">%% Util.</th>
+        <th bgcolor="%(navy)s" style="padding:10px 6px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.15);">#</th>
+        <th bgcolor="%(navy)s" style="padding:10px 6px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.15);">CÓDIGO</th>
+        <th bgcolor="%(navy)s" style="padding:10px 6px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.15);">PRODUCTO</th>
+        <th bgcolor="%(navy)s" style="padding:10px 6px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.15);">MARCA</th>
+        <th bgcolor="%(navy)s" style="padding:10px 6px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.15);">PRESENTACIÓN</th>
+        <th bgcolor="%(navy)s" style="padding:10px 6px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.15);">CANTIDAD PEDIDA</th>
+        <th bgcolor="%(navy)s" style="padding:10px 6px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.15);">CANTIDAD A COMPRAR</th>
+        <th bgcolor="%(navy)s" style="padding:10px 6px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.15);">STOCK</th>
+        <th bgcolor="%(navy)s" style="padding:10px 6px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.15);">BACKORDER</th>
+        <th bgcolor="%(navy)s" style="padding:10px 6px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.15);">CLIENTE</th>
+        <th bgcolor="%(navy)s" style="padding:10px 6px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.15);">CIUDAD</th>
+        <th bgcolor="%(navy)s" style="padding:10px 6px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.15);">FECHA DE COMPROMISO<br>(DD/MM/AA)</th>
+        
+        <!-- Bloque Costo Cotizado -->
+        <th bgcolor="%(amber)s" style="padding:10px 8px;text-align:center;color:#ffffff;font-size:10.5px;font-weight:700;vertical-align:middle;border-right:2px solid #ffffff;min-width:150px;">COSTO COTIZADO<br>UNITARIO EXW</th>
+        
+        <!-- Bloque Costo de Compra EXW -->
+        <th bgcolor="%(compra_bg)s" style="padding:10px 8px;text-align:center;color:#ffffff;font-size:10.5px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.2);min-width:150px;">COSTO DE COMPRA<br>UNITARIO EXW</th>
+        <th bgcolor="%(compra_bg)s" style="padding:10px 8px;text-align:center;color:#ffffff;font-size:10.5px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.2);min-width:150px;">COSTO DE COMPRA<br>TOTAL EXW</th>
+        
+        <!-- Bloque Costo Puesto en Avantika antes de IVA (COP) -->
+        <th bgcolor="%(compra_bg)s" style="padding:10px 8px;text-align:center;color:#ffffff;font-size:10.5px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.2);min-width:180px;">COSTO UNITARIO DE COMPRA PUESTO EN AVANTIKA ANTES DE IVA (%(moneda_empresa)s)</th>
+        <th bgcolor="%(compra_bg)s" style="padding:10px 8px;text-align:center;color:#ffffff;font-size:10.5px;font-weight:700;vertical-align:middle;border-right:2px solid #ffffff;min-width:180px;">COSTO TOTAL DE COMPRA PUESTO EN AVANTIKA ANTES DE IVA (%(moneda_empresa)s)</th>
+        
+        <!-- Bloque Precio de Venta -->
+        <th bgcolor="%(venta_bg)s" style="padding:10px 8px;text-align:center;color:#ffffff;font-size:10.5px;font-weight:700;vertical-align:middle;border-right:1px solid rgba(255,255,255,0.2);min-width:150px;">PRECIO DE VENTA<br>UNITARIO</th>
+        <th bgcolor="%(venta_bg)s" style="padding:10px 8px;text-align:center;color:#ffffff;font-size:10.5px;font-weight:700;vertical-align:middle;border-right:2px solid #ffffff;min-width:170px;">PRECIO DE VENTA TOTAL<br>ANTES DE IVA</th>
+        
+        <!-- Bloque Margen -->
+        <th bgcolor="%(teal)s" style="padding:10px 6px;text-align:center;color:#ffffff;font-size:11px;font-weight:700;vertical-align:middle;">PERCENTIL MARGEN</th>
       </tr>
       %(filas)s
-      <tr bgcolor="%(bg)s" style="border-top:2px solid %(navy)s;">
-        <td style="padding:9px 8px;background:%(bg)s !important;"></td>
-        <td colspan="11" style="padding:9px 8px;font-weight:700;color:%(navy)s !important;background:%(bg)s !important;font-size:12.5px;">TOTAL</td>
-        <td style="padding:9px 8px;text-align:right;font-weight:700;color:#1F2937 !important;background:%(bg)s !important;font-size:12.5px;">%(tot_exw)s</td>
-        <td style="padding:9px 8px;text-align:right;font-weight:700;color:#1F2937 !important;background:%(bg)s !important;font-size:12.5px;">%(tot_comprado)s</td>
-        <td style="padding:9px 8px;text-align:right;font-weight:700;color:#1F2937 !important;background:%(bg)s !important;font-size:12.5px;">%(tot_vendido)s</td>
-        <td style="padding:9px 8px;text-align:right;font-weight:700;color:%(color_total)s !important;background:%(bg)s !important;font-size:12.5px;">%(pct_total)s%%</td>
+      <!-- Fila de Totales -->
+      <tr bgcolor="%(navy)s" style="border-top:2px solid %(navy)s;background-color:%(navy)s !important;">
+        <td style="padding:12px 8px;background:%(navy)s !important;"></td>
+        <td colspan="13" style="padding:12px 8px;font-weight:700;color:#ffffff !important;background:%(navy)s !important;font-size:13.5px;text-align:right;">TOTALES</td>
+        <td style="padding:12px 10px;text-align:right;font-weight:700;color:#ffffff !important;background:%(navy)s !important;font-size:13.5px;min-width:150px;">%(tot_exw)s</td>
+        <td style="padding:12px 8px;background:%(navy)s !important;"></td>
+        <td style="padding:12px 10px;text-align:right;font-weight:700;color:#ffffff !important;background:%(navy)s !important;font-size:13.5px;min-width:180px;">%(tot_puesto_cop)s</td>
+        <td style="padding:12px 8px;background:%(navy)s !important;"></td>
+        <td style="padding:12px 10px;text-align:right;font-weight:700;color:#ffffff !important;background:%(navy)s !important;font-size:13.5px;min-width:170px;">%(tot_venta_empresa)s</td>
+        <td style="padding:12px 8px;text-align:center;font-weight:700;color:#ffffff !important;background:%(navy)s !important;font-size:13.5px;">%(pct_total)s%%</td>
       </tr>
     </table>
     </div>
   </td></tr>
 
-  %(bloque_kits)s
-
   <!-- Observaciones -->
   <tr><td style="padding:28px 0 6px;">
     <span style="font-size:15px;font-weight:600;color:%(navy)s !important;">📝 Observaciones</span>
-    <div style="font-size:11px;color:%(gray)s !important;margin-top:2px;">Espacio libre para que quien envía la solicitud agregue una nota antes de enviarla.</div>
+    <div style="font-size:11px;color:%(gray)s !important;margin-top:2px;">Espacio libre para agregar una nota antes de enviar la solicitud.</div>
   </td></tr>
   <tr><td>
-    <div style="background:%(blanco)s !important;border:1px dashed %(border)s;border-radius:8px;min-height:60px;padding:12px 14px;color:#1F2937 !important;font-size:13px;">
+    <div style="background-color:%(blanco)s;border:1px dashed %(border)s;border-radius:8px;min-height:60px;padding:12px 14px;color:#1F2937 !important;font-size:13px;">
         &nbsp;
     </div>
   </td></tr>
@@ -526,6 +502,9 @@ html = '''
 ''' % {
     'bg': BG_LIGHT,
     'navy': NAVY,
+    'amber': AMBER,
+    'compra_bg': COMPRA_BG,
+    'venta_bg': VENTA_BG,
     'teal': TEAL,
     'gray': GRAY_TXT,
     'border': BORDER,
@@ -534,22 +513,22 @@ html = '''
     'num_oc': num_oc,
     'fecha_oc': fecha_oc,
     'proveedor': proveedor,
-    'moneda_oc': moneda_oc,
+    'moneda_oc': moneda_oc.name if moneda_oc else '',
+    'moneda_empresa': MONEDA_EMPRESA.name,
     'cond_pago_proveedor': cond_pago_proveedor or '—',
     'cond_pago_oc': cond_pago_oc or '—',
     'fila_factor': (
-        '<tr style="border-top:1px solid %s;"><td style="color:%s !important;font-size:12px;">Factor de Importación</td>'
-        '<td style="font-size:13px;font-weight:600;color:#1F2937 !important;" colspan="3">%s</td></tr>'
+        '<tr style="border-top:1px solid %s;"><td style="color:%s !important;font-size:12px;text-align:left;width:200px;padding:8px 12px;">Factor de Importación</td>'
+        '<td style="font-size:13px;font-weight:600;color:#1F2937 !important;text-align:left;padding:8px 12px;">%s</td></tr>'
         % (BORDER, GRAY_TXT, fmt_factor(factor_importacion))
     ) if hay_factor else '',
     'fila_tasa': fila_tasa_html,
     'filas': filas_html,
-    'tot_exw': fmt(total_costo_exw),
-    'tot_comprado': fmt(total_costo_compra),
-    'tot_vendido': fmt(total_vendido),
+    'tot_exw': fmt_moneda(total_exw_moneda_compra, moneda_oc),
+    'tot_puesto_cop': fmt_moneda(total_puesto_convertido_empresa, MONEDA_EMPRESA),
+    'tot_venta_empresa': fmt_moneda(total_venta_moneda_empresa, MONEDA_EMPRESA),
     'pct_total': '%.1f' % pct_ponderado,
     'color_total': color_pct(pct_ponderado),
-    'bloque_kits': bloque_kits,
     'link': link_po,
     'link_aprobar': link_aprobar,
     'boton_rechazar': boton_rechazar_html,
@@ -576,7 +555,7 @@ action = {
         'default_partner_ids': [aprobador.partner_id.id],
         'default_use_template': False,
         'purchase_approval_flow': True,
-        'dialog_size': 'extra-large',  # 'small' | 'medium' | 'large' | 'extra-large' (no existe 'fullscreen')
+        'dialog_size': 'extra-large',
     },
 }
 ]]></field>

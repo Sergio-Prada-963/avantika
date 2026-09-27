@@ -5,5 +5,4 @@ from . import res_users
 from . import res_company
 from . import res_config_settings
 from . import mrp_bom
-from . import stock_move
 from . import sale_order_line_kit_component

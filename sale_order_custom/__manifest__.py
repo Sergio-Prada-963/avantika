@@ -31,6 +31,7 @@ sale.order y sale.order.line sin modificar el módulo estándar de ventas.
         'views/res_users_views.xml',
         'views/res_config_settings_views.xml',
         'views/res_partner_views.xml',
+        'report/sale_order_report_templates.xml',
     ],
     'assets': {
         'web.assets_backend': [

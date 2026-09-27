@@ -68,6 +68,10 @@ class SaleOrderLine(models.Model):
                     "kit_line_id": line.id,
                     "is_kit_component_line": True,
                     "kit_component_qty": component_qty,
+                    # Sin esto nace con la secuencia por defecto (10) y
+                    # empata con otras líneas de la misma orden, desordenando
+                    # su posición relativa al ordenar por (sequence, id).
+                    "sequence": line.sequence #deberia colocar 9999999,
                 })
 
     def write(self, vals):

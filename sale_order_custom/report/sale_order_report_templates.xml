@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="report_saleorder_document_print_datetime" inherit_id="sale.report_saleorder_document">
+        <xpath expr="//div[@id='informations']" position="after">
+            <div class="row mb-4" name="print_datetime_row" contenteditable="false">
+                <div class="col" name="informations_print_datetime">
+                    <strong>Fecha de Impresión</strong>
+                    <div t-esc="context_timestamp(datetime.datetime.now()).strftime('%d/%m/%Y %H:%M')"/>
+                </div>
+            </div>
+        </xpath>
+    </template>
+
+</odoo>

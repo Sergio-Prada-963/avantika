@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="purchase_sale_demand.DemandDaysBadgeField">
+        <span t-if="props.record.data[props.name] !== false" class="badge rounded-pill" t-att-class="badgeClass" t-esc="formattedValue" />
+    </t>
+
+</templates>

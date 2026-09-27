@@ -28,6 +28,7 @@ cantidad comprada se refleja en la línea de venta correspondiente.
         'sale_order_custom',
         'mail',
         'mrp',
+        'l10n_co_edi',
     ],
     'data': [
         'security/ir.model.access.csv',
@@ -44,6 +45,8 @@ cantidad comprada se refleja en la línea de venta correspondiente.
             'purchase_sale_demand/static/src/views/demand_dashboard.xml',
             'purchase_sale_demand/static/src/views/demand_listview.js',
             'purchase_sale_demand/static/src/views/demand_listview.xml',
+            'purchase_sale_demand/static/src/widgets/demand_days_badge_field.js',
+            'purchase_sale_demand/static/src/widgets/demand_days_badge_field.xml',
         ],
     },
     'installable': True,

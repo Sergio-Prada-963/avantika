@@ -29,14 +29,14 @@
             <xpath expr="//field[@name='order_line']/list/field[@name='price_unit']" position="after">
                 <field name="pricelist_line_id" optional="hide" readonly="1"/>
                 <field name="supplierinfo_id" optional="hide" readonly="1" groups="base.group_system"/>
-                <field name="exwork" string="Costo" optional="show"/>
+                <field name="exwork" string="Costo EXW" optional="show"/>
                 <field name="factor_importacion" optional="hide" groups="base.group_system"/>
                 <field name="trm" optional="hide" groups="base.group_system"/>
                 <field name="factor_rentabilidad" optional="hide" groups="base.group_system"/>
                 <field name="seller_mismatch" column_invisible="1"/>
             </xpath>
             <xpath expr="//field[@name='order_line']/list/field[@name='purchase_price']" position="attributes">
-                <attribute name="string">Costo Promedio</attribute>
+                <attribute name="string">Costo Promedio EXW</attribute>
             </xpath>
         </field>
     </record>

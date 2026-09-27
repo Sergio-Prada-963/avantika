@@ -15,10 +15,6 @@
                             <field name="indicador_verde"/>
                         </div>
                         <div class="row mt8">
-                            <label for="indicador_verde_claro" class="col-lg-4 o_light_label" string="Azul hasta (días)"/>
-                            <field name="indicador_verde_claro"/>
-                        </div>
-                        <div class="row mt8">
                             <label for="indicador_amarillo" class="col-lg-4 o_light_label" string="Amarillo hasta (días)"/>
                             <field name="indicador_amarillo"/>
                         </div>

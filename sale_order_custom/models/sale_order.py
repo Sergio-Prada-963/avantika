@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from lxml import etree
 from markupsafe import Markup
 
 from odoo import _, api, fields, models
@@ -169,6 +170,66 @@ class SaleOrder(models.Model):
             order._check_margin_decisions_defined()
         return self.env.ref('sale.action_report_saleorder').report_action(self.ids)
 
+    @api.model
+    def get_view(self, view_id=None, view_type='list', **options):
+        result = super().get_view(view_id=view_id, view_type=view_type, **options)
+        arch_changed = False
+        tree = None
+        if view_type in ('form', 'list', 'kanban') and self.env.user.can_create_sales:
+            tree = etree.fromstring(result['arch'])
+            tree.set('create', '1')
+            arch_changed = True
+        if view_type == 'list' and not self.env.user.can_duplicate_sales:
+            tree = tree if tree is not None else etree.fromstring(result['arch'])
+            for button in tree.iter('button'):
+                if button.get('name') == 'action_duplicate_order':
+                    button.getparent().remove(button)
+                    arch_changed = True
+        if arch_changed:
+            result['arch'] = etree.tostring(tree, encoding='unicode')
+        return result
+
+    can_duplicate_order = fields.Boolean(
+        string="Puede Duplicar",
+        compute='_compute_can_duplicate_order',
+        help="Refleja el permiso 'Duplicar Ventas' del usuario actual, para "
+             "mostrar/ocultar el botón propio de Duplicar (independiente del "
+             "'Duplicar' nativo, que Odoo desactiva automáticamente cuando "
+             "'create' está apagado en la vista).",
+    )
+
+    @api.depends_context('uid')
+    def _compute_can_duplicate_order(self):
+        can_duplicate = self.env.user.can_duplicate_sales
+        for order in self:
+            order.can_duplicate_order = can_duplicate
+
+    def action_duplicate_order(self):
+        if not self:
+            raise UserError(_("Selecciona al menos una orden de venta para duplicar."))
+        if not self.env.user.can_duplicate_sales:
+            raise UserError(_("No tienes permiso para duplicar órdenes de venta."))
+
+        new_orders = self.env['sale.order']
+        for order in self:
+            new_orders |= order.copy()
+
+        if len(new_orders) == 1:
+            return {
+                'type': 'ir.actions.act_window',
+                'res_model': 'sale.order',
+                'res_id': new_orders.id,
+                'view_mode': 'form',
+                'target': 'current',
+            }
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _("Órdenes Duplicadas"),
+            'res_model': 'sale.order',
+            'view_mode': 'list,form',
+            'domain': [('id', 'in', new_orders.ids)],
+        }
+
 
 class SaleOrderLine(models.Model):
     _inherit = 'sale.order.line'
@@ -199,33 +260,6 @@ class SaleOrderLine(models.Model):
         string="Puede Editar Precio Unitario",
         compute='_compute_can_edit_price_unit',
     )
-    location_id = fields.Many2one(
-        'stock.location',
-        string="Ubicación",
-        domain="[('usage', '=', 'internal')]",
-        help="Ubicación de existencias desde la cual se tomará el producto "
-             "de esta línea. Al seleccionar el producto se sugiere "
-             "automáticamente una ubicación (dentro del almacén de la "
-             "orden) que tenga existencias de ese producto.",
-    )
-
-    @api.onchange('product_id')
-    def _onchange_product_id_location(self):
-        for line in self:
-            if not line.product_id:
-                continue
-            domain = [
-                ('product_id', '=', line.product_id.id),
-                ('location_id.usage', '=', 'internal'),
-                ('quantity', '>', 0),
-                ('company_id', '=', line.company_id.id),
-            ]
-            warehouse = line.order_id.warehouse_id
-            if warehouse:
-                domain.append(('location_id', 'child_of', warehouse.view_location_id.id))
-            quant = self.env['stock.quant'].search(domain, order='quantity desc', limit=1)
-            line.location_id = quant.location_id
-
     @api.depends_context('uid')
     def _compute_can_edit_price_unit(self):
         can_edit = self.env.user.can_edit_price_unit

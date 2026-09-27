@@ -12,17 +12,11 @@ class ResCompany(models.Model):
              "venta y hoy para mostrar el indicador en verde. Rango: de 0 "
              "hasta este valor.",
     )
-    indicador_verde_claro = fields.Integer(
-        string="Indicador Azul (días)",
-        default=5,
-        help="Límite de días para el indicador azul. Rango: desde "
-             "(Indicador Verde + 1) hasta este valor.",
-    )
     indicador_amarillo = fields.Integer(
         string="Indicador Amarillo (días)",
         default=10,
         help="Límite de días para el indicador amarillo. Rango: desde "
-             "(Indicador Azul + 1) hasta este valor.",
+             "(Indicador Verde + 1) hasta este valor.",
     )
     indicador_rojo = fields.Integer(
         string="Indicador Rojo (días)",

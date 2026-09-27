@@ -37,6 +37,9 @@
             </xpath>
 
             <xpath expr="//header" position="inside">
+                <field name="can_duplicate_order" invisible="1"/>
+                <button string="Duplicar" name="action_duplicate_order" type="object"
+                    invisible="not can_duplicate_order or not id"/>
                 <button string="Cambiar Producto"
                     name="%(sale_order_custom.action_sale_order_change_product_wizard)d"
                     type="action"
@@ -75,12 +78,10 @@
             <xpath expr="//field[@name='order_line']//list" position="inside">
                 <field name="aiu_line_type" column_invisible="1"/>
                 <field name="due_date" optional="show"/>
-                <field name="location_id" optional="hide"/>
             </xpath>
 
             <xpath expr="//field[@name='order_line']//form" position="inside">
                 <field name="due_date"/>
-                <field name="location_id"/>
             </xpath>
 
             <xpath expr="//button[@id='action_confirm']" position="attributes">
@@ -138,6 +139,10 @@
         <field name="arch" type="xml">
             <xpath expr="//list" position="attributes">
                 <attribute name="create">0</attribute>
+            </xpath>
+            <xpath expr="//header" position="inside">
+                <button string="Duplicar" name="action_duplicate_order" type="object"
+                    class="btn-secondary"/>
             </xpath>
         </field>
     </record>

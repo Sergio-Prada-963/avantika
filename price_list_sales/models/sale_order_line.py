@@ -160,9 +160,18 @@ class SaleOrderLine(models.Model):
     def _compute_pricing_reference_fields(self):
         for line in self:
             if line.product_id and line._is_kit():
-                # Estos campos son informativos de un único proveedor y no
-                # aplican a un kit, cuyo precio es la suma de componentes.
-                line.exwork = 0.0
+                # factor_importacion/trm/factor_rentabilidad son informativos
+                # de un único proveedor y no aplican a un kit. exwork sí: es
+                # la suma del costo total (component_cost, "Costo Total EXW")
+                # de cada componente de su lista de materiales -- esos campos
+                # ya calculan el costo de cada componente con su propio
+                # proveedor/factor de importación (ver mrp.bom._get_component_cost)
+                # -- normalizada a 1 unidad del kit (bom.product_qty puede no ser 1).
+                bom = line._get_kit_bom()
+                if bom and bom.product_qty:
+                    line.exwork = sum(bom.bom_line_ids.mapped('component_cost')) / bom.product_qty
+                else:
+                    line.exwork = 0.0
                 line.factor_importacion = 0.0
                 line.trm = 0.0
                 line.factor_rentabilidad = 0.0
@@ -181,16 +190,14 @@ class SaleOrderLine(models.Model):
                 rentabilidad = 0.0
 
             raw_price = seller.price if seller else 0.0
-            line.exwork, line.trm = line._apply_seller_conversion(raw_price, seller)
-            line.factor_importacion = seller.factor_importacion or 0.0
+            converted_price, line.trm = line._apply_seller_conversion(raw_price, seller)
+            factor_importacion = seller.factor_importacion or 0.0
+            line.factor_importacion = factor_importacion
+            # El factor de importación queda incluido en exwork (no se
+            # multiplica aparte en ningún lado más: ver _compute_price_unit,
+            # _compute_component_price y product_pricelist_item._compute_price).
+            line.exwork = converted_price * (factor_importacion or 1)
             line.factor_rentabilidad = rentabilidad
-
-    @api.depends('exwork')
-    def _compute_purchase_price(self):
-        super()._compute_purchase_price()
-        for line in self:
-            if line.product_id and not line._is_kit():
-                line.purchase_price = line.exwork
 
     def _is_kit(self):
         """Un kit es un producto con una lista de materiales asociada
@@ -256,10 +263,11 @@ class SaleOrderLine(models.Model):
             lambda s: s.partner_id == pricelist_line.proveedor_id
         )[:1]
         raw_price = seller.price if seller else 0.0
-        exwork, __ = self._apply_seller_conversion(raw_price, seller)
+        converted_price, __ = self._apply_seller_conversion(raw_price, seller)
         factor_importacion = seller.factor_importacion or 0.0
+        exwork = converted_price * (factor_importacion or 1)
 
-        price = exwork * (factor_importacion or 1) / ((100 - rentabilidad) / 100)
+        price = exwork / ((100 - rentabilidad) / 100)
         return price * component_qty
 
     @api.depends(
@@ -335,9 +343,9 @@ class SaleOrderLine(models.Model):
             if line.factor_rentabilidad >= 100:
                 continue
 
-            price = line.exwork * (line.factor_importacion or 1) / (
-                (100 - line.factor_rentabilidad) / 100
-            )
+            # factor_importacion ya viene incluido en exwork (ver
+            # _compute_pricing_reference_fields), no se multiplica aquí de nuevo.
+            price = line.exwork / ((100 - line.factor_rentabilidad) / 100)
 
             line = line.with_context(sale_write_from_compute=True)
             line.price_unit = price
