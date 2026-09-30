@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_sale_order_change_customer_wizard_form" model="ir.ui.view">
+        <field name="name">sale.order.change.customer.wizard.form</field>
+        <field name="model">sale.order.change.customer.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Cambiar Cliente">
+                <field name="order_id" invisible="1"/>
+                <group>
+                    <field name="current_partner_id"/>
+                    <field name="new_partner_id"/>
+                </group>
+                <footer>
+                    <button string="Cambiar Cliente" name="action_change_customer" type="object"
+                        class="btn-primary"/>
+                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_sale_order_change_customer_wizard" model="ir.actions.act_window">
+        <field name="name">Cambiar Cliente</field>
+        <field name="res_model">sale.order.change.customer.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+</odoo>

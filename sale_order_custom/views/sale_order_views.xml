@@ -45,6 +45,11 @@
                     type="action"
                     context="{'default_order_id': id}"
                     invisible="state not in ['sent', 'sale']"/>
+                <button string="Cambiar Cliente"
+                    name="%(sale_order_custom.action_sale_order_change_customer_wizard)d"
+                    type="action"
+                    context="{'default_order_id': id}"
+                    invisible="state in ['draft'] or not id"/>
                 <field name="has_margin_lines" invisible="1"/>
                 <field name="has_pending_margin_line" invisible="1"/>
                 <field name="can_approve_sale_margin" invisible="1"/>

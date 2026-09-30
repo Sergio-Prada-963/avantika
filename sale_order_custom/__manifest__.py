@@ -25,6 +25,7 @@ sale.order y sale.order.line sin modificar el módulo estándar de ventas.
     'data': [
         'security/ir.model.access.csv',
         'wizard/sale_order_change_product_wizard_views.xml',
+        'wizard/sale_order_change_customer_wizard_views.xml',
         'views/mrp_bom_views.xml',
         'views/product_supplierinfo_views.xml',
         'views/sale_order_views.xml',
