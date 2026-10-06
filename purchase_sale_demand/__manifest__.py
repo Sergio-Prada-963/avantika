@@ -37,6 +37,7 @@ cantidad comprada se refleja en la línea de venta correspondiente.
         'views/sale_order_line_views.xml',
         'views/purchase_order_views.xml',
         'views/res_config_settings_views.xml',
+        'views/stock_forecasted_demand_views.xml',
     ],
     'assets': {
         'web.assets_backend': [
@@ -45,8 +46,13 @@ cantidad comprada se refleja en la línea de venta correspondiente.
             'purchase_sale_demand/static/src/views/demand_dashboard.xml',
             'purchase_sale_demand/static/src/views/demand_listview.js',
             'purchase_sale_demand/static/src/views/demand_listview.xml',
+            'purchase_sale_demand/static/src/views/demand_forecasted.js',
+            'purchase_sale_demand/static/src/views/demand_forecasted.xml',
+            'purchase_sale_demand/static/src/views/demand_forecasted_details.js',
+            'purchase_sale_demand/static/src/views/demand_forecasted_details.xml',
             'purchase_sale_demand/static/src/widgets/demand_days_badge_field.js',
             'purchase_sale_demand/static/src/widgets/demand_days_badge_field.xml',
+            'purchase_sale_demand/static/src/widgets/demand_qty_at_date_widget.js',
         ],
     },
     'installable': True,

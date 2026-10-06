@@ -46,8 +46,26 @@ class PurchaseOrder(models.Model):
                 ('uvt_base', '=', True),
                 ('type_tax_use', '=', 'purchase'),
             ])
-            for tax in candidate_taxes:
+            # Primero se evalúa la posición fiscal, igual que lo hace Odoo de
+            # forma nativa (account.fiscal.position.map_tax): un impuesto sin
+            # fiscal_position_ids configurado siempre sigue siendo candidato;
+            # uno con posiciones configuradas solo lo sigue siendo si
+            # corresponde a la posición fiscal de la orden. Se evalúa
+            # impuesto por impuesto (no el lote completo) porque map_tax
+            # descarta todo el lote si alguno de los impuestos recibidos
+            # tiene fiscal_position_ids y la posición no tiene tax_ids.
+            applicable_taxes = candidate_taxes.filtered(
+                lambda tax: tax in order.fiscal_position_id.map_tax(tax)
+            )
+            for tax in candidate_taxes - applicable_taxes:
+                order._remove_tax_from_lines(tax)
+            for tax in applicable_taxes:
                 order._sync_single_uvt_withholding_tax(tax, uvt_value)
+
+    def _remove_tax_from_lines(self, tax):
+        self.ensure_one()
+        for line in self.order_line.filtered(lambda l: not l.display_type):
+            line._apply_uvt_withholding_tax(tax, False)
 
     def _sync_single_uvt_withholding_tax(self, tax, uvt_value):
         self.ensure_one()

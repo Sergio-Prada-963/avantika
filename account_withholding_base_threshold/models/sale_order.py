@@ -67,7 +67,20 @@ class SaleOrder(models.Model):
                 ('uvt_base', '=', True),
                 ('type_tax_use', '=', 'sale'),
             ])
-            for tax in candidate_taxes:
+            # Primero se evalúa la posición fiscal, igual que lo hace Odoo de
+            # forma nativa (account.fiscal.position.map_tax): un impuesto sin
+            # fiscal_position_ids configurado siempre sigue siendo candidato;
+            # uno con posiciones configuradas solo lo sigue siendo si
+            # corresponde a la posición fiscal de la orden. Se evalúa
+            # impuesto por impuesto (no el lote completo) porque map_tax
+            # descarta todo el lote si alguno de los impuestos recibidos
+            # tiene fiscal_position_ids y la posición no tiene tax_ids.
+            applicable_taxes = candidate_taxes.filtered(
+                lambda tax: tax in order.fiscal_position_id.map_tax(tax)
+            )
+            for tax in candidate_taxes - applicable_taxes:
+                order._remove_tax_from_lines(tax)
+            for tax in applicable_taxes:
                 if tax.is_reteica and tax.city_id != order.city_declaration_id:
                     # ReteICA de otro municipio (o no hay ciudad declarada):
                     # nunca aplica en esta orden, sin importar la base.

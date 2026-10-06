@@ -294,8 +294,8 @@ class SaleOrderLine(models.Model):
         for line in self:
             if not line.can_approve_sale_margin:
                 raise UserError(_("No tiene permisos para aprobar o rechazar márgenes de venta."))
-            if line.state != 'draft':
-                raise UserError(_("Solo se puede decidir sobre el margen de líneas en estado borrador."))
+            if line.state not in ('draft', 'sent'):
+                raise UserError(_("Solo se puede decidir sobre el margen de líneas en estado borrador o cotización enviada."))
 
     def action_approve_margin(self):
         self._check_can_decide_margin()

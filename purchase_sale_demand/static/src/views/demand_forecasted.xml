@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates id="template" xml:space="preserve">
+    <div t-name="purchase_sale_demand.DemandForecasted" class="o_action o_stock_forecast">
+        <ControlPanel>
+            <t t-set-slot="layout-buttons">
+                <ForecastedButtons action="props.action" reloadReport.bind="reloadReport" resModel="resModel"/>
+            </t>
+        </ControlPanel>
+        <div class="o-content pt-3 container-fluid overflow-auto o_stock_forecasted_page">
+            <ForecastedHeader docs="docs" openView.bind="openView"/>
+            <t t-if="graphViewId">
+                <View type="'graph'"
+                    viewId="graphViewId"
+                    resModel="'report.stock.quantity'"
+                    domain="graphDomain"
+                    display="{controlPanel: false}"
+                    context="{fill_temporal: false}"
+                    info="graphInfo"
+                    useSampleModel="true"
+                />
+            </t>
+            <ForecastedDetails docs="docs" openView.bind="openView" reloadReport.bind="reloadReport"/>
+        </div>
+    </div>
+</templates>

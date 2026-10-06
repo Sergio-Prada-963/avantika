@@ -18,4 +18,19 @@
         </field>
     </record>
 
+    <record id="view_purchase_order_kpis_tree_vendor_response" model="ir.ui.view">
+        <field name="name">purchase.order.kpis.tree.vendor.response</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_kpis_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state']" position="after">
+                <field name="vendor_response_status"
+                    decoration-info="vendor_response_status == 'sent'"
+                    decoration-success="vendor_response_status == 'confirmed'"
+                    widget="badge"
+                    optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
 </odoo>

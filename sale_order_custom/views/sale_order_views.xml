@@ -56,15 +56,15 @@
                 <button name="action_approve_all_margins" type="object"
                     string="Aprobar Todos los Márgenes"
                     class="oe_highlight"
-                    invisible="not has_margin_lines or not has_pending_margin_line or not can_approve_sale_margin or state != 'draft'"/>
+                    invisible="not has_margin_lines or not has_pending_margin_line or not can_approve_sale_margin or state not in ('draft', 'sent')"/>
                 <button name="action_reject_all_margins" type="object"
                     string="Rechazar Todos los Márgenes"
                     class="oe_highlight"
-                    invisible="not has_margin_lines or not has_pending_margin_line or not can_approve_sale_margin or state != 'draft'"/>
+                    invisible="not has_margin_lines or not has_pending_margin_line or not can_approve_sale_margin or state not in ('draft', 'sent')"/>
                 <button name="action_reset_all_margins" type="object"
                     string="Restablecer Todos los Márgenes"
                     class="oe_highlight"
-                    invisible="not has_margin_lines or has_pending_margin_line or not can_approve_sale_margin or state != 'draft'"/>
+                    invisible="not has_margin_lines or has_pending_margin_line or not can_approve_sale_margin or state not in ('draft', 'sent')"/>
             </xpath>
 
             <xpath expr="//field[@name='payment_term_id']" position="after">
@@ -126,13 +126,13 @@
             <xpath expr="//field[@name='order_line']//list//field[@name='product_id']" position="before">
                 <button name="action_approve_margin" type="object" icon="fa-check"
                     title="Aprobar margen" class="text-success"
-                    invisible="display_type or not can_approve_sale_margin or state != 'draft' or margin_approval_status != 'pending'"/>
+                    invisible="display_type or not can_approve_sale_margin or state not in ('draft', 'sent') or margin_approval_status != 'pending'"/>
                 <button name="action_reject_margin" type="object" icon="fa-times"
                     title="Rechazar margen" class="text-danger"
-                    invisible="display_type or not can_approve_sale_margin or state != 'draft' or margin_approval_status != 'pending'"/>
+                    invisible="display_type or not can_approve_sale_margin or state not in ('draft', 'sent') or margin_approval_status != 'pending'"/>
                 <button name="action_reset_margin_approval" type="object" icon="fa-refresh"
                     title="Reiniciar decisión de margen" class="text-info"
-                    invisible="display_type or not can_approve_sale_margin or state != 'draft' or margin_approval_status == 'pending'"/>
+                    invisible="display_type or not can_approve_sale_margin or state not in ('draft', 'sent') or margin_approval_status == 'pending'"/>
             </xpath>
         </field>
     </record>

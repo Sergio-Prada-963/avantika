@@ -30,7 +30,7 @@
                 <field name="margin_percent" string="Margen" widget="percentage" readonly="1"/>
                 <field name="product_uom_qty" string="Cantidad Pedida" readonly="1"/>
                 <field name="qty_to_purchase" string="Cantidad a Comprar" readonly="1"/>
-                <widget name="qty_at_date_widget"/>
+                <widget name="demand_qty_at_date_widget"/>
                 <widget name="stock_quant_search_widget" options="{'hide_extra_icons': True}"/>
                 <field name="purchase_proveedor_id" string="Proveedor" readonly="1"/>
                 <field name="buyer_id" string="Comprador" readonly="1"/>

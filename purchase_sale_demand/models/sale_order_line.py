@@ -55,6 +55,11 @@ class SaleOrderLine(models.Model):
     product_qty_available = fields.Float(
         string="Cantidad Disponible en Inventario",
         compute='_compute_product_qty_available',
+        help="Disponible en general del producto, sumando TODAS las "
+             "ubicaciones internas de todas las bodegas/compañías "
+             "permitidas, neto de lo ya reservado (de cualquier línea). "
+             "Calculado directo desde stock.quant, sin depender de "
+             "qty_available/free_qty/virtual_available del producto.",
     )
     qty_reserved_delivery = fields.Float(
         string="Cantidad Reservada para el Pedido",
@@ -205,10 +210,28 @@ class SaleOrderLine(models.Model):
         for line in self:
             line.purchase_currency_id = line.supplierinfo_id.currency_id
 
-    @api.depends('product_id.free_qty')
+    @api.depends('product_id.qty_available', 'product_id.free_qty')
     def _compute_product_qty_available(self):
+        # Fórmula propia (no delega el VALOR a qty_available/free_qty del
+        # producto): suma directamente los stock.quant del producto en
+        # todas las ubicaciones internas de todas las bodegas/compañías
+        # permitidas, y resta lo ya reservado de
+        # esos mismos quants. Se depende de qty_available/free_qty del
+        # producto SOLO como disparador (son los campos que Odoo invalida
+        # cada vez que cambia algo en stock.quant/stock.move), no se usa su
+        # valor en el cálculo.
         for line in self:
-            line.product_qty_available = line.product_id.free_qty if line.product_id else 0.0
+            if not line.product_id:
+                line.product_qty_available = 0.0
+                continue
+            quants = self.env['stock.quant'].search([
+                ('product_id', '=', line.product_id.id),
+                ('location_id.usage', '=', 'internal'),
+                ('company_id', 'in', self.env.companies.ids),
+            ])
+            on_hand = sum(quants.mapped('quantity'))
+            reserved = sum(quants.mapped('reserved_quantity'))
+            line.product_qty_available = on_hand - reserved
 
     @api.depends(
         'move_ids.state',
@@ -238,19 +261,63 @@ class SaleOrderLine(models.Model):
 
     @api.depends(
         'product_uom_qty', 'qty_reserved_delivery', 'product_qty_available',
+        'purchase_line_ids.product_qty', 'purchase_line_ids.qty_received',
+        'purchase_line_ids.order_id.state',
         'is_kit_component_line', 'kit_component_qty',
     )
     def _compute_qty_to_purchase(self):
-        for line in self:
-            # Las líneas técnicas de componente de kit se mantienen con
-            # product_uom_qty = 0 a propósito (para no disparar entrega ni
-            # facturación); la cantidad real a comprar vive en
-            # kit_component_qty.
-            base_qty = line.kit_component_qty if line.is_kit_component_line else line.product_uom_qty
-            line.qty_to_purchase = max(
-                base_qty - line.qty_reserved_delivery - line.product_qty_available,
-                0.0,
+        # product_qty_available es un total GLOBAL del producto, compartido
+        # por TODAS las órdenes de venta que lo piden - no es exclusivo de
+        # una sola línea. Si cada línea lo restara de forma independiente,
+        # varias órdenes del mismo producto podrían mostrar "0 a comprar"
+        # simultáneamente aunque, sumadas, la demanda real supere por mucho
+        # lo que hay libre (ese disponible se "prestaría" a todas a la vez,
+        # cuando en la realidad solo alcanza para una).
+        #
+        # Para evitarlo se agrupan TODAS las líneas de venta confirmadas que
+        # compiten por el mismo producto (no solo las de `self`: Odoo puede
+        # recomputar una sola línea sin sus hermanas, así que hay que
+        # buscarlas explícitamente) y se reparte el disponible compartido de
+        # forma secuencial: FIFO por fecha de confirmación de la orden (la
+        # más antigua se queda primero con lo que necesite del disponible
+        # compartido; las siguientes solo ven lo que sobra).
+        qty_to_purchase_by_line_id = {}
+        for product in self.mapped('product_id'):
+            competing_lines = self.env['sale.order.line'].search([
+                ('product_id', '=', product.id),
+                ('display_type', '=', False),
+                ('kit_component_line_ids', '=', False),
+                ('order_id.state', '=', 'sale'),
+                ('already_purchased', '=', False),
+            ])
+            competing_lines = competing_lines.sorted(
+                key=lambda l: (l.order_id.date_order or l.create_date, l.id)
             )
+            remaining_pool = competing_lines[:1].product_qty_available if competing_lines else 0.0
+            for line in competing_lines:
+                base_qty = line.kit_component_qty if line.is_kit_component_line else line.product_uom_qty
+                # De lo ya comprado (purchase_line_ids confirmadas) solo se
+                # resta la parte que AÚN NO ha llegado (product_qty -
+                # qty_received): en cuanto una compra se recibe, esas
+                # unidades pasan a ser stock físico y ya quedan cubiertas
+                # por product_qty_available/qty_reserved_delivery - restar
+                # también qty_purchased completo ahí las contaría dos veces.
+                confirmed_purchase_lines = line.purchase_line_ids.filtered(
+                    lambda l: l.order_id.state in ('purchase', 'done')
+                )
+                qty_purchased_pending = sum(
+                    max(l.product_qty - l.qty_received, 0.0) for l in confirmed_purchase_lines
+                )
+                local_remaining = max(
+                    base_qty - line.qty_reserved_delivery - qty_purchased_pending,
+                    0.0,
+                )
+                claimed_from_pool = min(local_remaining, remaining_pool)
+                remaining_pool -= claimed_from_pool
+                qty_to_purchase_by_line_id[line.id] = local_remaining - claimed_from_pool
+
+        for line in self:
+            line.qty_to_purchase = qty_to_purchase_by_line_id.get(line.id, 0.0)
 
     def action_create_purchase_orders(self):
         lines = self.filtered(

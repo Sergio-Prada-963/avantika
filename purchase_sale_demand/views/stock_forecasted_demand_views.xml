@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="stock_report_view_graph_demand" model="ir.ui.view">
+        <field name="name">stock_report_view_graph.demand</field>
+        <field name="model">report.stock.quantity</field>
+        <field name="arch" type="xml">
+            <graph js_class="stock_forecasted_graph" string="report_stock_quantity_graph" type="line" sample="1" disable_linking="1">
+                <field name="date" interval="day"/>
+                <field name="warehouse_id"/>
+                <field name="product_qty" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_demand_forecasted_product_product" model="ir.actions.client">
+        <field name="name">Disponibilidad en Todas las Bodegas</field>
+        <field name="tag">purchase_sale_demand_forecasted</field>
+    </record>
+
+</odoo>

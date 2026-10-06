@@ -6,7 +6,7 @@ import { DemandDashboard } from "@purchase_sale_demand/views/demand_dashboard";
 // Los <widget> de una lista no reciben una clase CSS propia por nombre (a
 // diferencia de los <field>), así que no hay forma de acercar con CSS puro
 // las celdas de los íconos de gráfica/lupa sin este pequeño override.
-const ICON_WIDGET_NAMES = ["qty_at_date_widget", "stock_quant_search_widget"];
+const ICON_WIDGET_NAMES = ["demand_qty_at_date_widget", "stock_quant_search_widget"];
 
 export class DemandDashboardRenderer extends ListRenderer {
     static template = "purchase_sale_demand.ListRenderer";

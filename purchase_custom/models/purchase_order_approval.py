@@ -35,6 +35,42 @@ class PurchaseOrder(models.Model):
         for order in self:
             order.show_confirm_button_no_approval = show
 
+    vendor_response_status = fields.Selection(
+        selection=[
+            ('sent', "Enviado"),
+            ('confirmed', "Confirmado"),
+        ],
+        string="Respuesta del Proveedor",
+        copy=False,
+        help="Se marca 'Enviado' automáticamente al enviar la orden de "
+             "compra por correo (botón de envío), y 'Confirmado' en cuanto "
+             "el proveedor responde ese correo o deja cualquier mensaje en "
+             "el chatter de esta orden. No se edita a mano, solo "
+             "informativo.",
+    )
+
+    def message_post(self, **kwargs):
+        # `mark_rfq_as_sent` es el mismo flag que usa el núcleo de Odoo para
+        # saber que este message_post viene del envío real de la orden de
+        # compra por correo (ver purchase.order.message_post en el núcleo),
+        # así que reusarlo aquí garantiza que "Enviado" refleje el mismo
+        # evento que el propio estado nativo 'sent' de la orden.
+        mark_as_sent = self.env.context.get('mark_rfq_as_sent')
+        message = super().message_post(**kwargs)
+        if mark_as_sent:
+            self.filtered(
+                lambda o: o.vendor_response_status != 'confirmed'
+            ).write({'vendor_response_status': 'sent'})
+        elif message.author_id:
+            for order in self:
+                if (
+                    order.partner_id
+                    and message.author_id == order.partner_id
+                    and order.vendor_response_status != 'confirmed'
+                ):
+                    order.vendor_response_status = 'confirmed'
+        return message
+
     def action_send_for_approval(self):
         self.ensure_one()
         if self.state != 'draft':
