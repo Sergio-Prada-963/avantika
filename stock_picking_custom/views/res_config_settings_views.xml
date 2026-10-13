@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_move_indicator" model="ir.ui.view">
+        <field name="name">res.config.settings.form.move.indicator</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="stock.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='operations_setting_container']" position="inside">
+                <setting id="move_indicator_setting" string="Indicador de Movimientos Pendientes"
+                    help="Umbrales de días de atraso (fecha límite vs. hoy) que determinan el color del indicador en el listado de Movimientos Pendientes">
+                    <div class="content-group">
+                        <div class="row mt8">
+                            <label for="stock_move_indicador_verde" class="col-lg-4 o_light_label" string="Verde hasta (días)"/>
+                            <field name="stock_move_indicador_verde"/>
+                        </div>
+                        <div class="row mt8">
+                            <label for="stock_move_indicador_amarillo" class="col-lg-4 o_light_label" string="Amarillo hasta (días)"/>
+                            <field name="stock_move_indicador_amarillo"/>
+                        </div>
+                        <div class="row mt8">
+                            <label for="stock_move_indicador_rojo" class="col-lg-4 o_light_label" string="Rojo hasta (días)"/>
+                            <field name="stock_move_indicador_rojo"/>
+                        </div>
+                        <div class="row mt8">
+                            <label for="stock_move_indicador_negro" class="col-lg-4 o_light_label" string="Negro desde (días)"/>
+                            <field name="stock_move_indicador_negro"/>
+                        </div>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

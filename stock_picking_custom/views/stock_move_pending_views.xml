@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_stock_move_pending_list" model="ir.ui.view">
+        <field name="name">stock.move.pending.list</field>
+        <field name="model">stock.move</field>
+        <field name="arch" type="xml">
+            <list string="Movimientos Pendientes" create="false" js_class="move_dashboard_list"
+                    default_order="date_deadline asc">
+                <header>
+                    <button name="%(action_stock_move_change_picking_type_wizard)d" type="action"
+                        string="Cambiar Tipo de Operación" class="btn-primary"/>
+                    <button name="%(action_stock_move_create_internal_transfer_wizard)d" type="action"
+                        string="Traer de Otra Bodega" class="btn-secondary"/>
+                </header>
+                <field name="move_indicator" column_invisible="1"/>
+                <field name="move_indicator_days" string="Atraso" widget="move_days_badge" readonly="1"
+                    decoration-success="move_indicator == 'verde'"
+                    decoration-warning="move_indicator == 'amarillo'"
+                    decoration-danger="move_indicator == 'rojo'"
+                    decoration-muted="move_indicator == 'negro'"/>
+                <field name="date_deadline"/>
+                <field name="reference"/>
+                <field name="product_id"/>
+                <field name="location_id"/>
+                <field name="location_dest_id"/>
+                <field name="product_uom_qty"/>
+                <field name="quantity"/>
+                <field name="state"
+                    widget="badge"
+                    decoration-info="state in ('draft', 'waiting')"
+                    decoration-warning="state == 'confirmed'"
+                    decoration-success="state in ('assigned', 'partially_available')"/>
+                <field name="product_location_qty_display" column_invisible="1"/>
+                <widget name="product_location_qty_tags"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_stock_move_pending_search" model="ir.ui.view">
+        <field name="name">stock.move.pending.search</field>
+        <field name="model">stock.move</field>
+        <field name="arch" type="xml">
+            <search string="Movimientos Pendientes">
+                <field name="product_id"/>
+                <field name="reference"/>
+                <separator/>
+                <filter name="move_indicator_verde" string="Verde"
+                        domain="[('move_indicator', '=', 'verde')]"/>
+                <filter name="move_indicator_amarillo" string="Amarillo"
+                        domain="[('move_indicator', '=', 'amarillo')]"/>
+                <filter name="move_indicator_rojo" string="Rojo"
+                        domain="[('move_indicator', '=', 'rojo')]"/>
+                <filter name="move_indicator_negro" string="Negro"
+                        domain="[('move_indicator', '=', 'negro')]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_stock_move_pending" model="ir.actions.act_window">
+        <field name="name">Programacion de pedidos</field>
+        <field name="res_model">stock.move</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_stock_move_pending_list"/>
+        <field name="search_view_id" ref="view_stock_move_pending_search"/>
+        <field name="domain">["&amp;", "&amp;", ("location_id.usage", "in", ("internal", "transit")), ("location_dest_id.usage", "not in", ("internal", "transit")), ("state", "not in", ["done", "cancel"])]</field>
+    </record>
+
+    <menuitem id="menu_stock_move_pending"
+        name="Programacion de pedidos"
+        parent="stock.menu_stock_transfers"
+        action="action_stock_move_pending"
+        sequence="100"/>
+
+</odoo>

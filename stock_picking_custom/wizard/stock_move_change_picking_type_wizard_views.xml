@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_stock_move_change_picking_type_wizard_form" model="ir.ui.view">
+        <field name="name">stock.move.change.picking.type.wizard.form</field>
+        <field name="model">stock.move.change.picking.type.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Cambiar Tipo de Operación">
+                <field name="move_ids" invisible="1"/>
+                <field name="company_id" invisible="1"/>
+                <group>
+                    <field name="picking_type_id" domain="[('company_id', 'in', [False, company_id]), ('code', 'in', ('incoming', 'outgoing', 'internal'))]"/>
+                </group>
+                <footer>
+                    <button string="Guardar" name="action_change_picking_type" type="object" class="btn-primary"/>
+                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_stock_move_change_picking_type_wizard" model="ir.actions.act_window">
+        <field name="name">Cambiar Tipo de Operación</field>
+        <field name="res_model">stock.move.change.picking.type.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+</odoo>

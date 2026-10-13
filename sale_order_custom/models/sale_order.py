@@ -85,6 +85,7 @@ class SaleOrder(models.Model):
     @api.onchange('contract_global_due_date')
     def _onchange_contract_global_due_date(self):
         self.ensure_one()
+        self.commitment_date = self.contract_global_due_date
         for line in self.order_line:
             line.due_date = self.contract_global_due_date
 
@@ -150,6 +151,7 @@ class SaleOrder(models.Model):
         result = super().write(vals)
         if 'contract_global_due_date' in vals:
             for order in self:
+                order.commitment_date = order.contract_global_due_date
                 order.order_line.write({'due_date': order.contract_global_due_date})
         return result
 

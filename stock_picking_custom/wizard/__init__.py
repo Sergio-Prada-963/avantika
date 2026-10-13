@@ -1,0 +1,2 @@
+from . import stock_move_change_picking_type_wizard
+from . import stock_move_create_internal_transfer_wizard

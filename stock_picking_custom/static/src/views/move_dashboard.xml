@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates>
+    <t t-name="stock_picking_custom.MoveDashboard">
+        <div class="o_move_dashboard container-fluid py-3 border-bottom bg-view">
+            <div class="d-flex align-items-stretch gap-2">
+                <div class="d-flex align-items-center flex-shrink-0" style="min-width: 3rem;">
+                    Todos
+                </div>
+                <div class="grid gap-1 gap-lg-3 flex-grow-1" style="--columns: 4">
+                    <t t-foreach="indicators" t-as="ind" t-key="ind.key">
+                        <div class="g-col-12 g-col-lg-1 p-0" t-on-click="setSearchContext"
+                             t-att-title="ind.label" t-att-filter_name="ind.filterName">
+                            <a href="#" class="btn move-dashboard-card p-1 p-lg-2 text-truncate text-wrap text-center"
+                               t-attf-class="{{ ind.colorClass }}">
+                                <div class="fs-2">
+                                    <span t-out="getCount(ind.key)"/>
+                                </div>
+                                <t t-esc="ind.label"/>
+                            </a>
+                        </div>
+                    </t>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

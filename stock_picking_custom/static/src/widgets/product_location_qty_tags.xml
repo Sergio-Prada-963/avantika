@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+    <t t-name="stock_picking_custom.ProductLocationQtyTags">
+        <div class="d-flex flex-wrap gap-1">
+            <TagsList tags="tags"/>
+        </div>
+    </t>
+</templates>
