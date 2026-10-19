@@ -26,6 +26,8 @@ class PurchaseOrderChangeProductWizard(models.TransientModel):
         domain="[('purchase_ok', '=', True)]",
     )
     keep_price = fields.Boolean(string="Conservar Precio", default=True)
+    keep_description = fields.Boolean(string="Conservar Descripción", default=True)
+    new_description = fields.Text(string="Nueva Descripción")
 
     @api.model
     def default_get(self, fields_list):
@@ -33,6 +35,11 @@ class PurchaseOrderChangeProductWizard(models.TransientModel):
         if 'order_id' in fields_list and not res.get('order_id'):
             res['order_id'] = self.env.context.get('active_id')
         return res
+
+    def _get_new_description(self, old_description, new_product):
+        if self.keep_description:
+            return old_description
+        return self.new_description
 
     def _get_product_change_message(self, old_product, new_product, doc_label):
         template = _(
@@ -54,6 +61,7 @@ class PurchaseOrderChangeProductWizard(models.TransientModel):
         if not sale_line or sale_line.order_id.state == 'cancel':
             return False
         old_price_unit = sale_line.price_unit
+        old_description = sale_line.name
         # bypass_product_updatable_check evita el bloqueo nativo de Odoo para
         # líneas ya entregadas/facturadas (igual que el wizard equivalente
         # del lado de ventas); force_price_recomputation asegura que el
@@ -67,6 +75,7 @@ class PurchaseOrderChangeProductWizard(models.TransientModel):
         })
         if self.keep_price:
             sale_line.price_unit = old_price_unit
+        sale_line.name = self._get_new_description(old_description, new_product)
         sale_line.order_id.message_post(
             body=self._get_product_change_message(old_product, new_product, _("esta orden de venta"))
         )
@@ -106,15 +115,18 @@ class PurchaseOrderChangeProductWizard(models.TransientModel):
                 "No se puede cambiar el producto: esta línea ya tiene "
                 "cantidad recibida o facturada."
             ))
+        if not self.keep_description and not (self.new_description or '').strip():
+            raise UserError(_(
+                "Debe indicar la 'Nueva Descripción' cuando 'Conservar Descripción' está desactivado."
+            ))
 
         old_product = line.product_id
         old_price_unit = line.price_unit
+        old_description = line.name
         sale_line = line.sale_line_id
         moves = sale_line.move_ids if sale_line else self.env['stock.move']
 
-        name = new_product.display_name
-        if new_product.description_purchase:
-            name += '\n' + new_product.description_purchase
+        name = self._get_new_description(old_description, new_product)
         line.write({
             'product_id': new_product.id,
             'product_uom_id': new_product.uom_id.id,
@@ -134,6 +146,7 @@ class PurchaseOrderChangeProductWizard(models.TransientModel):
         updated_moves, skipped_moves = self._change_delivery_moves(moves, old_product, new_product)
 
         price_action = _("conservado") if self.keep_price else _("recalculado")
+        description_action = _("conservada") if self.keep_description else _("actualizada")
         old_html = Markup(
             '<span style="color:#dc3545;text-decoration:line-through;">%s</span>'
         ) % old_product.display_name
@@ -143,11 +156,12 @@ class PurchaseOrderChangeProductWizard(models.TransientModel):
 
         message = Markup(_(
             "Producto cambiado de %(old)s a %(new)s en la línea de compra "
-            "(precio %(price_action)s)."
+            "(precio %(price_action)s, descripción %(description_action)s)."
         )) % {
             'old': old_html,
             'new': new_html,
             'price_action': price_action,
+            'description_action': description_action,
         }
         if changed_sale:
             message += Markup('<br/>') + _("Se actualizó el producto en la línea de venta relacionada.")

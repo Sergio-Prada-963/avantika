@@ -12,6 +12,8 @@
                     <field name="current_product_id"/>
                     <field name="new_product_id"/>
                     <field name="keep_price"/>
+                    <field name="keep_description"/>
+                    <field name="new_description" invisible="keep_description" required="not keep_description"/>
                 </group>
                 <footer>
                     <button string="Cambiar Producto" name="action_change_product" type="object"

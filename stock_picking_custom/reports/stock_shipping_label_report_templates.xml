@@ -9,69 +9,105 @@
                         .o_shipping_label, .o_shipping_label * {
                             font-family: 'Helvetica Neue', Arial, sans-serif !important;
                         }
+                        /* Las 3 columnas del rótulo usan "display: table" en vez de
+                           flexbox: wkhtmltopdf (el motor que genera el PDF real,
+                           a diferencia de la vista previa HTML en el navegador) no
+                           respeta flexbox de forma confiable y hacía que las
+                           columnas se superpusieran unas sobre otras al imprimir. */
+                        .o_shipping_label .o_label_box_wrapper {
+                            margin-bottom: 22px;
+                        }
                         .o_shipping_label .o_label_box {
                             border: 2px solid #000;
-                            min-height: 480px;
+                            display: table;
+                            table-layout: fixed;
+                            width: 100%;
+                            height: 590px;
                         }
                         .o_shipping_label .o_label_col_logo {
+                            display: table-cell;
                             position: relative;
                             width: 22%;
+                            vertical-align: top;
+                            text-align: center;
+                            padding: 14px 8px 54px 8px;
                             border-right: 2px solid #000;
                         }
                         .o_shipping_label .o_label_col_fields {
+                            display: table-cell;
                             width: 56%;
-                            padding: 40px 28px;
+                            vertical-align: top;
+                            padding: 20px 24px;
                         }
                         .o_shipping_label .o_label_col_fragile {
+                            display: table-cell;
                             width: 22%;
+                            vertical-align: middle;
+                            text-align: center;
                             border-left: 2px solid #000;
                         }
                         .o_shipping_label .o_label_field {
                             display: flex;
-                            margin-bottom: 56px;
+                            margin-bottom: 18px;
                         }
                         .o_shipping_label .o_label_field strong {
-                            width: 150px;
+                            width: 170px;
                             flex-shrink: 0;
-                            font-size: 13px;
+                            font-size: 24px;
                         }
                         .o_shipping_label .o_label_field span {
-                            font-size: 13px;
+                            font-size: 24px;
                         }
-                        .o_shipping_label .o_label_logo_rotated {
+                        /* El logo y el texto de la empresa van rotados -90deg, igual que
+                           "FRÁGIL". Al rotar, el espacio visual de cada bloque pasa a
+                           medir de alto lo que antes medía de ancho (su "max-width" o el
+                           ancho de su línea más larga); por eso cada contenedor reserva
+                           esa altura explícitamente -un simple "transform" no reserva
+                           espacio extra por sí solo, y sin esto el bloque rotado se
+                           superpone con lo que esté debajo. Las líneas del texto van
+                           separadas con <br/> (en vez de dejar que ajuste solas) para
+                           controlar cuánto "ancho" (alto ya rotado) ocupa cada una. */
+                        .o_shipping_label .o_label_logo_rotated_area {
+                            height: 200px;
+                            text-align: center;
+                        }
+                        .o_shipping_label .o_label_logo_rotated_area img {
+                            max-height: 130px;
+                            max-width: 160px;
+                            margin-top: 20px;
+                            transform: rotate(-90deg);
+                            -webkit-transform: rotate(-90deg);
+                        }
+                        .o_shipping_label .o_label_company_info_area {
+                            position: relative;
+                            height: 310px;
+                        }
+                        .o_shipping_label .o_label_company_info {
                             position: absolute;
-                            top: 45%;
+                            top: 50%;
                             left: 50%;
                             transform: translate(-50%, -50%) rotate(-90deg);
                             -webkit-transform: translate(-50%, -50%) rotate(-90deg);
                             white-space: nowrap;
                             text-align: center;
-                        }
-                        .o_shipping_label .o_label_logo_rotated img {
-                            display: block;
-                            max-height: 90px;
-                            max-width: 200px;
-                            margin: 0 auto 6px auto;
-                        }
-                        .o_shipping_label .o_label_company_info {
-                            font-size: 10px;
-                            line-height: 1.6;
+                            font-size: 14px;
+                            line-height: 1.5;
                         }
                         .o_shipping_label .o_label_box_number {
                             position: absolute;
-                            bottom: 12px;
-                            left: 12px;
-                            right: 12px;
+                            bottom: 10px;
+                            left: 8px;
+                            right: 8px;
                             border-top: 1px solid #000;
                             padding-top: 6px;
-                            font-size: 15px;
+                            font-size: 16px;
                             text-align: left;
                         }
                         .o_shipping_label .o_label_fragile_text {
                             transform: rotate(-90deg);
                             -webkit-transform: rotate(-90deg);
                             white-space: nowrap;
-                            font-size: 44px;
+                            font-size: 56px;
                             font-weight: 700;
                             letter-spacing: 6px;
                         }
@@ -81,56 +117,66 @@
                         <t t-set="delivery_partner" t-value="o.partner_id"/>
                         <t t-set="commercial_partner" t-value="delivery_partner.commercial_partner_id"/>
                         <div class="page">
-                            <div class="d-flex o_label_box">
-                                <div class="o_label_col_logo">
-                                    <div class="o_label_logo_rotated">
-                                        <img t-if="company.logo" t-att-src="image_data_uri(company.logo)" alt="Logo"/>
-                                        <div class="o_label_company_info">
-                                            <strong t-field="company.name"/> - NIT: <span t-field="company.vat"/><br/>
-                                            <span t-field="company.street"/> - <span t-field="company.city"/> - Tel: <span t-field="company.phone"/>
+                            <!-- Se imprimen dos copias del mismo rótulo en una sola hoja
+                                 (p. ej. para pegar una en la caja y conservar la otra). -->
+                            <t t-foreach="(1, 2)" t-as="copy_num">
+                                <div class="o_label_box_wrapper">
+                                    <div class="o_label_box">
+                                        <div class="o_label_col_logo">
+                                            <div class="o_label_logo_rotated_area">
+                                                <img t-if="company.logo" t-att-src="image_data_uri(company.logo)" alt="Logo"/>
+                                            </div>
+                                            <div class="o_label_company_info_area">
+                                                <div class="o_label_company_info">
+                                                    <strong t-field="company.name"/><br/>
+                                                    NIT: <span t-field="company.vat"/><br/>
+                                                    <span t-field="company.street"/><br/>
+                                                    <span t-field="company.city"/> - Tel: <span t-field="company.phone"/>
+                                                </div>
+                                            </div>
+                                            <div class="o_label_box_number">
+                                                <strong>CAJA No.</strong> ______
+                                                <strong>DE</strong> ______
+                                            </div>
+                                        </div>
+                                        <div class="o_label_col_fields">
+                                            <div class="o_label_field">
+                                                <strong>DESTINATARIO:</strong>
+                                                <span t-field="commercial_partner.name">Cliente</span>
+                                            </div>
+                                            <div class="o_label_field">
+                                                <strong>CONTACTO:</strong>
+                                                <span t-if="delivery_partner != commercial_partner" t-field="delivery_partner.name"/>
+                                            </div>
+                                            <div class="o_label_field">
+                                                <strong>DIRECCION:</strong>
+                                                <span>
+                                                    <span t-field="delivery_partner.street"/>
+                                                    <t t-if="delivery_partner.street2"> - <span t-field="delivery_partner.street2"/></t>
+                                                </span>
+                                            </div>
+                                            <div class="o_label_field">
+                                                <strong>CIUDAD:</strong>
+                                                <span>
+                                                    <span t-field="delivery_partner.city"/>
+                                                    <t t-if="delivery_partner.state_id"> - <span t-field="delivery_partner.state_id.name"/></t>
+                                                </span>
+                                            </div>
+                                            <div class="o_label_field">
+                                                <strong>TELEFONO:</strong>
+                                                <span t-field="delivery_partner.phone"/>
+                                            </div>
+                                            <div class="o_label_field">
+                                                <strong>CLIENTE OC:</strong>
+                                                <span t-field="o.sale_id.client_order_ref"/>
+                                            </div>
+                                        </div>
+                                        <div class="o_label_col_fragile">
+                                            <div class="o_label_fragile_text">FRÁGIL</div>
                                         </div>
                                     </div>
-                                    <div class="o_label_box_number">
-                                        <strong>CAJA No.</strong> ______
-                                        <strong>DE</strong> ______
-                                    </div>
                                 </div>
-                                <div class="o_label_col_fields">
-                                    <div class="o_label_field">
-                                        <strong>DESTINATARIO:</strong>
-                                        <span t-field="commercial_partner.name">Cliente</span>
-                                    </div>
-                                    <div class="o_label_field">
-                                        <strong>CONTACTO:</strong>
-                                        <span t-if="delivery_partner != commercial_partner" t-field="delivery_partner.name"/>
-                                    </div>
-                                    <div class="o_label_field">
-                                        <strong>DIRECCION:</strong>
-                                        <span>
-                                            <span t-field="delivery_partner.street"/>
-                                            <t t-if="delivery_partner.street2"> - <span t-field="delivery_partner.street2"/></t>
-                                        </span>
-                                    </div>
-                                    <div class="o_label_field">
-                                        <strong>CIUDAD:</strong>
-                                        <span>
-                                            <span t-field="delivery_partner.city"/>
-                                            <t t-if="delivery_partner.state_id"> - <span t-field="delivery_partner.state_id.name"/></t>
-                                        </span>
-                                    </div>
-                                    <div class="o_label_field">
-                                        <strong>TELEFONO:</strong>
-                                        <span t-field="delivery_partner.phone"/>
-                                    </div>
-                                    <div class="o_label_field">
-                                        <strong>CLIENTE OC:</strong>
-                                        <span t-field="o.sale_id.client_order_ref"/>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center justify-content-center o_label_col_fragile">
-                                    <div class="o_label_fragile_text">FRÁGIL</div>
-                                </div>
-                            </div>
+                            </t>
                         </div>
                         <t t-if="not o_last">
                             <p style="page-break-after: always;"/>

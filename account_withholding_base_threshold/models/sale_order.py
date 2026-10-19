@@ -30,7 +30,7 @@ class SaleOrder(models.Model):
         for order in self:
             order.city_declaration_id = order.partner_id.city_declaration_id
 
-    @api.onchange(*ORDER_LINE_TRIGGER_FIELDS, 'city_declaration_id')
+    @api.onchange(*ORDER_LINE_TRIGGER_FIELDS, 'city_declaration_id', 'fiscal_position_id')
     def _onchange_sync_uvt_withholding_taxes(self):
         for order in self:
             order._sync_uvt_withholding_taxes()
@@ -43,7 +43,7 @@ class SaleOrder(models.Model):
 
     def write(self, vals):
         res = super().write(vals)
-        if {'order_line', 'partner_id', 'currency_id', 'city_declaration_id'} & set(vals.keys()):
+        if {'order_line', 'partner_id', 'currency_id', 'city_declaration_id', 'fiscal_position_id'} & set(vals.keys()):
             self._sync_uvt_withholding_taxes()
         return res
 
@@ -59,39 +59,58 @@ class SaleOrder(models.Model):
 
     def _sync_uvt_withholding_taxes(self):
         for order in self:
-            uvt_value = order.company_id.uvt_value
-            if uvt_value <= 0:
-                continue
+            # Solo se gestionan los impuestos que este módulo considera
+            # "configurados": uvt_base, is_reteica, o el campo nativo de
+            # Odoo "Posición fiscal" (fiscal_position_ids) en el propio
+            # impuesto. Un impuesto sin NINGUNO de estos tres campos -el
+            # predeterminado del producto, por ejemplo- queda completamente
+            # intocado, con su comportamiento normal.
             candidate_taxes = self.env['account.tax'].search([
                 *self.env['account.tax']._check_company_domain(order.company_id),
-                ('uvt_base', '=', True),
                 ('type_tax_use', '=', 'sale'),
+                '|', '|',
+                ('uvt_base', '=', True),
+                ('is_reteica', '=', True),
+                ('fiscal_position_ids', '!=', False),
             ])
-            # Primero se evalúa la posición fiscal, igual que lo hace Odoo de
-            # forma nativa (account.fiscal.position.map_tax): un impuesto sin
-            # fiscal_position_ids configurado siempre sigue siendo candidato;
-            # uno con posiciones configuradas solo lo sigue siendo si
-            # corresponde a la posición fiscal de la orden. Se evalúa
-            # impuesto por impuesto (no el lote completo) porque map_tax
-            # descarta todo el lote si alguno de los impuestos recibidos
-            # tiene fiscal_position_ids y la posición no tiene tax_ids.
-            applicable_taxes = candidate_taxes.filtered(
-                lambda tax: tax in order.fiscal_position_id.map_tax(tax)
-            )
-            for tax in candidate_taxes - applicable_taxes:
-                order._remove_tax_from_lines(tax)
-            for tax in applicable_taxes:
+            for tax in candidate_taxes:
+                # Regla 1 (posición fiscal): se compara contra la posición
+                # fiscal de la ORDEN (fiscal_position_id), no la del
+                # contacto directamente. En condiciones normales coinciden
+                # (Odoo la precarga desde el contacto al crear/cambiar
+                # partner_id), pero si se sobreescribe a mano en esta orden
+                # específica, se respeta esa elección. Un impuesto sin
+                # fiscal_position_ids configurado siempre pasa esta regla;
+                # uno con posiciones configuradas solo pasa si la orden
+                # tiene exactamente alguna de esas posiciones.
+                if tax.fiscal_position_ids and order.fiscal_position_id not in tax.fiscal_position_ids:
+                    order._set_tax_on_all_lines(tax, False)
+                    continue
+
+                # Regla 3 (ReteICA municipal): si está activa, el municipio
+                # del impuesto debe coincidir con el declarado en la orden;
+                # si no está activa, esta regla no bloquea nada.
                 if tax.is_reteica and tax.city_id != order.city_declaration_id:
-                    # ReteICA de otro municipio (o no hay ciudad declarada):
-                    # nunca aplica en esta orden, sin importar la base.
-                    order._remove_tax_from_lines(tax)
+                    order._set_tax_on_all_lines(tax, False)
+                    continue
+
+                # Regla 2 (umbral UVT): si no está activa, el impuesto ya
+                # pasó las otras dos compuertas y se aplica directamente.
+                if not tax.uvt_base:
+                    order._set_tax_on_all_lines(tax, True)
+                    continue
+
+                uvt_value = order.company_id.uvt_value
+                if uvt_value <= 0:
+                    # Sin UVT configurado no hay umbral que evaluar: se deja
+                    # el impuesto tal como está (no se fuerza ni se quita).
                     continue
                 order._sync_single_uvt_withholding_tax(tax, uvt_value)
 
-    def _remove_tax_from_lines(self, tax):
+    def _set_tax_on_all_lines(self, tax, should_have_tax):
         self.ensure_one()
         for line in self.order_line.filtered(lambda l: not l.display_type):
-            line._apply_uvt_withholding_tax(tax, False)
+            line._apply_uvt_withholding_tax(tax, should_have_tax)
 
     def _sync_single_uvt_withholding_tax(self, tax, uvt_value):
         self.ensure_one()

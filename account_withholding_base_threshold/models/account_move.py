@@ -37,7 +37,7 @@ class AccountMove(models.Model):
         for move in self:
             move.city_declaration_id = move.partner_id.city_declaration_id
 
-    @api.onchange(*INVOICE_LINE_TRIGGER_FIELDS, 'city_declaration_id')
+    @api.onchange(*INVOICE_LINE_TRIGGER_FIELDS, 'city_declaration_id', 'fiscal_position_id')
     def _onchange_sync_uvt_withholding_taxes(self):
         for move in self:
             if move.state == 'draft' and move.is_invoice(include_receipts=True):
@@ -53,7 +53,7 @@ class AccountMove(models.Model):
 
     def write(self, vals):
         res = super().write(vals)
-        if {'invoice_line_ids', 'partner_id', 'currency_id', 'city_declaration_id'} & set(vals.keys()):
+        if {'invoice_line_ids', 'partner_id', 'currency_id', 'city_declaration_id', 'fiscal_position_id'} & set(vals.keys()):
             self.filtered(
                 lambda m: m.state == 'draft' and m.is_invoice(include_receipts=True)
             )._sync_uvt_withholding_taxes()
@@ -73,41 +73,59 @@ class AccountMove(models.Model):
             type_tax_use = MOVE_TYPE_TAX_USE.get(move.move_type)
             if not type_tax_use:
                 continue
-            uvt_value = move.company_id.uvt_value
-            if uvt_value <= 0:
-                # Without a configured UVT value there is no threshold to
-                # compare against: leave taxes exactly as they currently are.
-                continue
+
+            # Solo se gestionan los impuestos que este módulo considera
+            # "configurados": uvt_base, is_reteica, o el campo nativo de
+            # Odoo "Posición fiscal" (fiscal_position_ids) en el propio
+            # impuesto. Un impuesto sin NINGUNO de estos tres campos -el
+            # predeterminado del producto, por ejemplo- queda completamente
+            # intocado, con su comportamiento normal.
             candidate_taxes = self.env['account.tax'].search([
                 *self.env['account.tax']._check_company_domain(move.company_id),
-                ('uvt_base', '=', True),
                 ('type_tax_use', '=', type_tax_use),
+                '|', '|',
+                ('uvt_base', '=', True),
+                ('is_reteica', '=', True),
+                ('fiscal_position_ids', '!=', False),
             ])
-            # Primero se evalúa la posición fiscal, igual que lo hace Odoo de
-            # forma nativa (account.fiscal.position.map_tax): un impuesto sin
-            # fiscal_position_ids configurado siempre sigue siendo candidato;
-            # uno con posiciones configuradas solo lo sigue siendo si
-            # corresponde a la posición fiscal de la factura. Se evalúa
-            # impuesto por impuesto (no el lote completo) porque map_tax
-            # descarta todo el lote si alguno de los impuestos recibidos
-            # tiene fiscal_position_ids y la posición no tiene tax_ids.
-            applicable_taxes = candidate_taxes.filtered(
-                lambda tax: tax in move.fiscal_position_id.map_tax(tax)
-            )
-            for tax in candidate_taxes - applicable_taxes:
-                move._remove_tax_from_lines(tax)
-            for tax in applicable_taxes:
+            for tax in candidate_taxes:
+                # Regla 1 (posición fiscal): se compara contra la posición
+                # fiscal del DOCUMENTO (fiscal_position_id), no la del
+                # contacto directamente. En condiciones normales coinciden
+                # (Odoo la precarga desde el contacto al crear/cambiar
+                # partner_id), pero si se sobreescribe a mano en este
+                # documento específico, se respeta esa elección. Un impuesto
+                # sin fiscal_position_ids configurado siempre pasa esta
+                # regla; uno con posiciones configuradas solo pasa si el
+                # documento tiene exactamente alguna de esas posiciones.
+                if tax.fiscal_position_ids and move.fiscal_position_id not in tax.fiscal_position_ids:
+                    move._set_tax_on_all_lines(tax, False)
+                    continue
+
+                # Regla 3 (ReteICA municipal): si está activa, el municipio
+                # del impuesto debe coincidir con el declarado en la
+                # factura; si no está activa, esta regla no bloquea nada.
                 if tax.is_reteica and tax.city_id != move.city_declaration_id:
-                    # ReteICA de otro municipio (o no hay ciudad declarada):
-                    # nunca aplica en esta factura, sin importar la base.
-                    move._remove_tax_from_lines(tax)
+                    move._set_tax_on_all_lines(tax, False)
+                    continue
+
+                # Regla 2 (umbral UVT): si no está activa, el impuesto ya
+                # pasó las otras dos compuertas y se aplica directamente.
+                if not tax.uvt_base:
+                    move._set_tax_on_all_lines(tax, True)
+                    continue
+
+                uvt_value = move.company_id.uvt_value
+                if uvt_value <= 0:
+                    # Sin UVT configurado no hay umbral que evaluar: se deja
+                    # el impuesto tal como está (no se fuerza ni se quita).
                     continue
                 move._sync_single_uvt_withholding_tax(tax, uvt_value)
 
-    def _remove_tax_from_lines(self, tax):
+    def _set_tax_on_all_lines(self, tax, should_have_tax):
         self.ensure_one()
         for line in self.invoice_line_ids:
-            line._apply_uvt_withholding_tax(tax, False)
+            line._apply_uvt_withholding_tax(tax, should_have_tax)
 
     def _sync_single_uvt_withholding_tax(self, tax, uvt_value):
         self.ensure_one()

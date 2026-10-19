@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_move_form_trm" model="ir.ui.view">
+        <field name="name">account.move.form.trm</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='currency_conversion_div']" position="after">
+                <div class="d-flex gap-1 text-muted" invisible="currency_id == company_currency_id">
+                    <span>TRM:</span>
+                    <field name="trm" readonly="1" class="oe_inline"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
