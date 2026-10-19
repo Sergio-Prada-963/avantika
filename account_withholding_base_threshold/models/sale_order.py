@@ -1,55 +1,49 @@
 # -*- coding: utf-8 -*-
-from odoo import Command, api, fields, models
-from odoo.tools import float_compare
+from odoo import api, fields, models
 
 ORDER_LINE_TRIGGER_FIELDS = (
     'order_line',
-    'order_line.price_subtotal',
-    'order_line.tax_ids',
-    'order_line.product_uom_qty',
-    'order_line.price_unit',
-    'order_line.discount',
 )
+# A7
+ORDER_TRIGGER_FIELDS = {
+    'order_line', 'partner_id', 'currency_id', 'pricelist_id', 'city_declaration_id',
+    'fiscal_position_id', 'partner_shipping_id', 'warehouse_id', 'date_order',
+}
 
 
 class SaleOrder(models.Model):
-    _inherit = 'sale.order'
+    _name = 'sale.order'
+    _inherit = ['sale.order', 'wbt.withholding.mixin']
 
     city_declaration_id = fields.Many2one(
         'res.city',
-        string='Ciudad Declaración ReteICA',
-        compute='_compute_city_declaration_id',
-        store=True, readonly=False,
-        help="Municipio en el que se declara el ReteICA de esta orden. Se "
-             "toma por defecto del cliente, pero puede sobreescribirse si "
-             "esta operación específica debe declararse en otra ciudad.",
+        string='Forzar ciudad ReteICA',
+        copy=False,
+        help="Vacío por defecto: bienes toman la ciudad de la bodega de salida "
+             "y servicios la de la dirección de entrega. Si se llena, manda "
+             "sobre todas las líneas y pasa a la factura.",
     )
 
-    @api.depends('partner_id')
-    def _compute_city_declaration_id(self):
-        for order in self:
-            order.city_declaration_id = order.partner_id.city_declaration_id
-
-    @api.onchange(*ORDER_LINE_TRIGGER_FIELDS, 'city_declaration_id', 'fiscal_position_id')
+    @api.onchange(*ORDER_LINE_TRIGGER_FIELDS, 'city_declaration_id', 'fiscal_position_id',
+                  'partner_id', 'partner_shipping_id', 'warehouse_id', 'date_order')
     def _onchange_sync_uvt_withholding_taxes(self):
-        for order in self:
-            order._sync_uvt_withholding_taxes()
+        self._wbt_sync_withholding_taxes()
 
     @api.model_create_multi
     def create(self, vals_list):
         orders = super().create(vals_list)
-        orders._sync_uvt_withholding_taxes()
+        orders._wbt_sync_withholding_taxes()
         return orders
 
     def write(self, vals):
         res = super().write(vals)
-        if {'order_line', 'partner_id', 'currency_id', 'city_declaration_id', 'fiscal_position_id'} & set(vals.keys()):
-            self._sync_uvt_withholding_taxes()
+        if ORDER_TRIGGER_FIELDS & set(vals):
+            self._wbt_sync_withholding_taxes()
         return res
 
     def action_confirm(self):
-        # Final safety net, mirroring account.move's _post() guard.
-        self._sync_uvt_withholding_taxes()
+        # Respaldo final antes de confirmar.
+        self._wbt_sync_withholding_taxes()
         return super().action_confirm()
 
     def _prepare_invoice(self):
@@ -57,87 +51,52 @@ class SaleOrder(models.Model):
         values['city_declaration_id'] = self.city_declaration_id.id
         return values
 
-    def _sync_uvt_withholding_taxes(self):
-        for order in self:
-            # Solo se gestionan los impuestos que este módulo considera
-            # "configurados": uvt_base, is_reteica, o el campo nativo de
-            # Odoo "Posición fiscal" (fiscal_position_ids) en el propio
-            # impuesto. Un impuesto sin NINGUNO de estos tres campos -el
-            # predeterminado del producto, por ejemplo- queda completamente
-            # intocado, con su comportamiento normal.
-            candidate_taxes = self.env['account.tax'].search([
-                *self.env['account.tax']._check_company_domain(order.company_id),
-                ('type_tax_use', '=', 'sale'),
-                '|', '|',
-                ('uvt_base', '=', True),
-                ('is_reteica', '=', True),
-                ('fiscal_position_ids', '!=', False),
-            ])
-            for tax in candidate_taxes:
-                # Regla 1 (posición fiscal): se compara contra la posición
-                # fiscal de la ORDEN (fiscal_position_id), no la del
-                # contacto directamente. En condiciones normales coinciden
-                # (Odoo la precarga desde el contacto al crear/cambiar
-                # partner_id), pero si se sobreescribe a mano en esta orden
-                # específica, se respeta esa elección. Un impuesto sin
-                # fiscal_position_ids configurado siempre pasa esta regla;
-                # uno con posiciones configuradas solo pasa si la orden
-                # tiene exactamente alguna de esas posiciones.
-                if tax.fiscal_position_ids and order.fiscal_position_id not in tax.fiscal_position_ids:
-                    order._set_tax_on_all_lines(tax, False)
-                    continue
+    # ------------------------------------------------------------------
+    # Implementación del mixin
+    # ------------------------------------------------------------------
+    def _wbt_type_tax_use(self):
+        return 'sale'
 
-                # Regla 3 (ReteICA municipal): si está activa, el municipio
-                # del impuesto debe coincidir con el declarado en la orden;
-                # si no está activa, esta regla no bloquea nada.
-                if tax.is_reteica and tax.city_id != order.city_declaration_id:
-                    order._set_tax_on_all_lines(tax, False)
-                    continue
-
-                # Regla 2 (umbral UVT): si no está activa, el impuesto ya
-                # pasó las otras dos compuertas y se aplica directamente.
-                if not tax.uvt_base:
-                    order._set_tax_on_all_lines(tax, True)
-                    continue
-
-                uvt_value = order.company_id.uvt_value
-                if uvt_value <= 0:
-                    # Sin UVT configurado no hay umbral que evaluar: se deja
-                    # el impuesto tal como está (no se fuerza ni se quita).
-                    continue
-                order._sync_single_uvt_withholding_tax(tax, uvt_value)
-
-    def _set_tax_on_all_lines(self, tax, should_have_tax):
+    def _wbt_is_editable(self):
+        # A9: ni bloqueadas, ni canceladas, ni ya facturadas
         self.ensure_one()
-        for line in self.order_line.filtered(lambda l: not l.display_type):
-            line._apply_uvt_withholding_tax(tax, should_have_tax)
+        return (
+            self.state != 'cancel'
+            and not self.locked
+            and not self.order_line._origin.invoice_lines
+        )
 
-    def _sync_single_uvt_withholding_tax(self, tax, uvt_value):
-        self.ensure_one()
-        minimum = tax.uvt_quantity * uvt_value
-        rounding = self.currency_id.rounding or 0.01
-        lines = self.order_line.filtered(lambda l: not l.display_type)
+    def _wbt_lines(self):
+        return self.order_line.filtered(lambda l: not l.display_type and not l.is_downpayment)
 
-        if tax.uvt_base_type == 'total':
-            base = sum(lines.mapped('price_subtotal'))
-            meets_threshold = float_compare(base, minimum, precision_rounding=rounding) >= 0
-            for line in lines:
-                line._apply_uvt_withholding_tax(tax, meets_threshold)
-        else:
-            for line in lines:
-                meets_threshold = float_compare(
-                    line.price_subtotal, minimum, precision_rounding=rounding
-                ) >= 0
-                line._apply_uvt_withholding_tax(tax, meets_threshold)
+    def _wbt_lines_field(self):
+        return 'order_line'
+
+    def _wbt_date(self):
+        return self.date_order or fields.Date.context_today(self)
+
+    def _wbt_line_city(self, line, kind):
+        if self.city_declaration_id:
+            return self.city_declaration_id
+        if kind == 'service':
+            return (self.partner_shipping_id or self.partner_id).city_id
+        if kind == 'goods':
+            return self.warehouse_id.partner_id.city_id
+        return self.env['res.city']
 
 
 class SaleOrderLine(models.Model):
     _inherit = 'sale.order.line'
 
-    def _apply_uvt_withholding_tax(self, tax, should_have_tax):
-        self.ensure_one()
-        has_tax = tax in self.tax_ids
-        if should_have_tax and not has_tax:
-            self.tax_ids = [Command.link(tax.id)]
-        elif not should_have_tax and has_tax:
-            self.tax_ids = [Command.unlink(tax.id)]
+    @api.model_create_multi
+    def create(self, vals_list):
+        lines = super().create(vals_list)
+        if lines:
+            lines.order_id._wbt_sync_from_lines(lines)
+        return lines
+
+    def write(self, vals):
+        res = super().write(vals)
+        if self:
+            self.order_id._wbt_sync_from_lines(self, vals)
+        return res

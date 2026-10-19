@@ -9,3 +9,7 @@ class ResConfigSettings(models.TransientModel):
         related='company_id.uvt_value', readonly=False, digits='Account',
         string='Valor UVT',
     )
+    wbt_no_product_mode = fields.Selection(
+        related='company_id.wbt_no_product_mode', readonly=False,
+        string='Líneas sin producto',
+    )

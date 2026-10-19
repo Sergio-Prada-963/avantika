@@ -5,8 +5,11 @@
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
-            <field name="partner_id" position="after">
-                <field name="city_declaration_id" invisible="1"/>
+            <field name="fiscal_position_id" position="after">
+                <field name="city_declaration_id"
+                       readonly="state == 'cancel' or locked"
+                       options="{'no_create': True}"
+                       placeholder="Automática por línea"/>
             </field>
         </field>
     </record>

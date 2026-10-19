@@ -6,7 +6,10 @@
         <field name="inherit_id" ref="account.view_partner_property_form"/>
         <field name="arch" type="xml">
             <field name="property_account_position_id" position="after">
-                <field name="city_declaration_id" groups="account.group_account_user"/>
+                <field name="wbt_reteica_agent" groups="account.group_account_user"/>
+                <field name="wbt_reteica_tax_ids" widget="many2many_tags"
+                       options="{'no_create': True}"
+                       groups="account.group_account_user"/>
             </field>
         </field>
     </record>

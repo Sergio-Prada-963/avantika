@@ -5,9 +5,13 @@
         <field name="model">account.move</field>
         <field name="inherit_id" ref="account.view_move_form"/>
         <field name="arch" type="xml">
-            <field name="fiscal_position_id" position="after">
-                <field name="city_declaration_id" invisible="move_type not in ('out_invoice', 'out_refund')"/>
-            </field>
+            <xpath expr="(//field[@name='fiscal_position_id'])[1]" position="after">
+                <field name="city_declaration_id"
+                       invisible="move_type not in ('out_invoice', 'out_refund', 'in_invoice', 'in_refund')"
+                       readonly="state != 'draft'"
+                       options="{'no_create': True}"
+                       placeholder="Automática por línea"/>
+            </xpath>
         </field>
     </record>
 </odoo>

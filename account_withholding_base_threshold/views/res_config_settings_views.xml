@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-
     <record id="res_config_settings_view_form_wbt" model="ir.ui.view">
         <field name="name">res.config.settings.view.form.wbt</field>
         <field name="model">res.config.settings</field>
@@ -8,11 +7,14 @@
         <field name="arch" type="xml">
             <xpath expr="//block[@id='invoicing_settings']" position="inside">
                 <setting id="wbt_uvt_value_setting" string="Bases Mínimas para Retenciones (UVT)"
-                         help="Valor en COP de la UVT vigente, usado para calcular la base mínima de las retenciones que tienen activo 'Aplica Base UVT'">
+                         help="Valor en COP de la UVT vigente. En 0, el módulo no toca los impuestos.">
                     <field name="uvt_value"/>
+                </setting>
+                <setting id="wbt_no_product_mode_setting" string="Retenciones en líneas sin producto"
+                         help="Cómo se tratan, para las retenciones, las líneas sin producto.">
+                    <field name="wbt_no_product_mode"/>
                 </setting>
             </xpath>
         </field>
     </record>
-
 </odoo>
